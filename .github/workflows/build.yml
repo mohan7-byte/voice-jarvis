@@ -62,7 +62,6 @@ jobs:
           </resources>
           EOF
 
-          # Re-added missing Accessibility Service Config XML
           cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
           <?xml version="1.0" encoding="utf-8"?>
           <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
@@ -76,7 +75,6 @@ jobs:
               android:notificationTimeout="50" />
           EOF
 
-          # ChatGPT Visual Component: colors.xml
           cat << 'EOF' > app/src/main/res/values/colors.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -99,7 +97,6 @@ jobs:
           </resources>
           EOF
 
-          # ChatGPT Visual Component: styles.xml
           cat << 'EOF' > app/src/main/res/values/styles.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -141,7 +138,6 @@ jobs:
           </resources>
           EOF
 
-          # ChatGPT Visual Component: bg_purple_card.xml
           cat << 'EOF' > app/src/main/res/drawable/bg_purple_card.xml
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"
@@ -159,7 +155,6 @@ jobs:
           </shape>
           EOF
 
-          # ChatGPT Visual Component: bg_input_field.xml
           cat << 'EOF' > app/src/main/res/drawable/bg_input_field.xml
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"
@@ -177,7 +172,7 @@ jobs:
           </shape>
           EOF
 
-          # ChatGPT Visual Component: activity_settings.xml
+          # Universal SwitchCompat avoids Material 3 theme clash
           cat << 'EOF' > app/src/main/res/layout/activity_settings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.core.widget.NestedScrollView
@@ -409,14 +404,13 @@ jobs:
                               android:text="Automatically close after finishing action" />
                       </LinearLayout>
 
-                      <com.google.android.material.materialswitch.MaterialSwitch
+                      <androidx.appcompat.widget.SwitchCompat
                           android:id="@+id/autoDisconnectSwitch"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:checked="false"
                           android:minWidth="52dp"
-                          android:padding="0dp"
-                          app:useMaterialThemeColors="false" />
+                          android:padding="0dp" />
                   </LinearLayout>
 
                   <!-- Auto Connect -->
@@ -447,14 +441,13 @@ jobs:
                               android:text="Listen immediately when triggered" />
                       </LinearLayout>
 
-                      <com.google.android.material.materialswitch.MaterialSwitch
+                      <androidx.appcompat.widget.SwitchCompat
                           android:id="@+id/autoConnectSwitch"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:checked="false"
                           android:minWidth="52dp"
-                          android:padding="0dp"
-                          app:useMaterialThemeColors="false" />
+                          android:padding="0dp" />
                   </LinearLayout>
 
                   <!-- Speaker Echo Guard -->
@@ -485,14 +478,13 @@ jobs:
                               android:text="Prevents speaker feedback acoustic loop" />
                       </LinearLayout>
 
-                      <com.google.android.material.materialswitch.MaterialSwitch
+                      <androidx.appcompat.widget.SwitchCompat
                           android:id="@+id/speakerEchoGuardSwitch"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:checked="true"
                           android:minWidth="52dp"
-                          android:padding="0dp"
-                          app:useMaterialThemeColors="false" />
+                          android:padding="0dp" />
                   </LinearLayout>
 
                   <!-- Bluetooth Priority -->
@@ -524,14 +516,13 @@ jobs:
                               android:text="Keep audio on media speaker" />
                       </LinearLayout>
 
-                      <com.google.android.material.materialswitch.MaterialSwitch
+                      <androidx.appcompat.widget.SwitchCompat
                           android:id="@+id/bluetoothPrioritySwitch"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:checked="true"
                           android:minWidth="52dp"
-                          android:padding="0dp"
-                          app:useMaterialThemeColors="false" />
+                          android:padding="0dp" />
                   </LinearLayout>
 
                   <!-- Assistant Instructions -->
@@ -643,7 +634,6 @@ jobs:
           include ':app'
           EOF
 
-          # Updated applicationId to install side-by-side!
           cat << 'EOF' > app/build.gradle
           apply plugin: 'com.android.application'
 
@@ -655,7 +645,7 @@ jobs:
                   applicationId "com.gemini.live.native"
                   minSdk 24
                   targetSdk 34
-                  versionCode 17
+                  versionCode 18
                   versionName "3.0"
               }
               buildTypes {
@@ -726,7 +716,7 @@ jobs:
           </manifest>
           EOF
 
-          # ChatGPT Visual Component: SettingsActivity.java
+          # Crash-Proof SettingsActivity.java
           cat << 'EOF' > app/src/main/java/com/gemini/live/SettingsActivity.java
           package com.gemini.live;
 
@@ -734,9 +724,7 @@ jobs:
           import android.content.SharedPreferences;
           import android.content.res.ColorStateList;
           import android.graphics.Color;
-          import android.graphics.drawable.Drawable;
-          import android.graphics.drawable.InsetDrawable;
-          import android.graphics.drawable.LayerDrawable;
+          import android.graphics.drawable.ColorDrawable;
           import android.os.Bundle;
           import android.provider.Settings;
           import android.text.InputType;
@@ -751,8 +739,8 @@ jobs:
           import android.widget.Toast;
           import androidx.annotation.NonNull;
           import androidx.appcompat.app.AppCompatActivity;
+          import androidx.appcompat.widget.SwitchCompat;
           import com.google.android.material.button.MaterialButton;
-          import com.google.android.material.materialswitch.MaterialSwitch;
           import java.util.Arrays;
           import java.util.List;
 
@@ -772,10 +760,10 @@ jobs:
               private EditText instructionsEditText;
               private EditText playbooksEditor;
 
-              private MaterialSwitch autoDisconnectSwitch;
-              private MaterialSwitch autoConnectSwitch;
-              private MaterialSwitch speakerEchoGuardSwitch;
-              private MaterialSwitch bluetoothPrioritySwitch;
+              private SwitchCompat autoDisconnectSwitch;
+              private SwitchCompat autoConnectSwitch;
+              private SwitchCompat speakerEchoGuardSwitch;
+              private SwitchCompat bluetoothPrioritySwitch;
 
               private Spinner modelSpinner;
               private Spinner voiceSpinner;
@@ -794,8 +782,10 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  getWindow().setStatusBarColor(Color.rgb(13, 16, 26));
-                  getWindow().setNavigationBarColor(Color.rgb(13, 16, 26));
+                  try {
+                      getWindow().setStatusBarColor(Color.rgb(13, 16, 26));
+                      getWindow().setNavigationBarColor(Color.rgb(13, 16, 26));
+                  } catch (Exception ignored) {}
 
                   setContentView(R.layout.activity_settings);
                   preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -855,7 +845,7 @@ jobs:
                   applySwitchTint(bluetoothPrioritySwitch, thumbTint, trackTint);
               }
 
-              private void applySwitchTint(MaterialSwitch sw, ColorStateList thumb, ColorStateList track) {
+              private void applySwitchTint(SwitchCompat sw, ColorStateList thumb, ColorStateList track) {
                   sw.setThumbTintList(thumb);
                   sw.setTrackTintList(track);
               }
@@ -866,29 +856,10 @@ jobs:
                   modelSpinner.setAdapter(modelAdapter);
                   voiceSpinner.setAdapter(voiceAdapter);
 
-                  modelSpinner.setPopupBackgroundDrawable(getDropdownBackground());
-                  voiceSpinner.setPopupBackgroundDrawable(getDropdownBackground());
-                  addSpinnerArrow(modelSpinner);
-                  addSpinnerArrow(voiceSpinner);
-              }
-
-              private Drawable getDropdownBackground() {
-                  android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
-                  d.setColor(Color.rgb(23, 26, 39));
-                  d.setCornerRadius(dp(10));
-                  return d;
-              }
-
-              private void addSpinnerArrow(Spinner spinner) {
-                  Drawable base = getDrawable(R.drawable.bg_input_field);
-                  Drawable arrow = getDrawable(android.R.drawable.arrow_down_float);
-                  if (arrow != null) {
-                      arrow.setTint(Color.rgb(220, 220, 230));
-                      InsetDrawable inset = new InsetDrawable(arrow, 0, dp(15), dp(10), dp(15));
-                      spinner.setBackground(new LayerDrawable(new Drawable[]{base, inset}));
-                  } else {
-                      spinner.setBackground(base);
-                  }
+                  try {
+                      modelSpinner.setPopupBackgroundDrawable(new ColorDrawable(Color.rgb(23, 26, 39)));
+                      voiceSpinner.setPopupBackgroundDrawable(new ColorDrawable(Color.rgb(23, 26, 39)));
+                  } catch (Exception ignored) {}
               }
 
               private void setupVolumeAccessibilityCard() {
@@ -979,10 +950,6 @@ jobs:
                       }
                   }
                   spinner.setSelection(0, false);
-              }
-
-              private int dp(int value) {
-                  return Math.round(value * getResources().getDisplayMetrics().density);
               }
 
               private static class DarkSpinnerAdapter extends ArrayAdapter<String> {
@@ -1456,7 +1423,6 @@ jobs:
                   return decl;
               }
 
-              // Standard Live API MediaChunks format
               public void sendAudioChunk(String base64Pcm) {
                   if (webSocket == null) return;
                   try {
@@ -2005,7 +1971,6 @@ jobs:
                   geminiClient.sendToolResponse(callId, result);
               }
 
-              // Calibrated 288x592 Native Touch with Magnetic Snapping
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -2360,4 +2325,4 @@ jobs:
           git tag -d v3.0 || true
           gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
             --title "Voice Native v3.0" \
-            --notes "Voice Native v3.0: Material UI, side-by-side package ID, masked API field, and calibrated 288x592 touch targeting." || true
+            --notes "Voice Native v3.0: Crash-proof Material UI, side-by-side package ID, and calibrated 288x592 touch targeting." || true
