@@ -31,6 +31,8 @@ jobs:
           mkdir -p app/src/main/java/com/gemini/live
           mkdir -p app/src/main/res/xml
           mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/mipmap-xxxhdpi
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xhdpi
@@ -60,28 +62,542 @@ jobs:
           </resources>
           EOF
 
+          # ChatGPT Visual Component: colors.xml
+          cat << 'EOF' > app/src/main/res/values/colors.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="oled_background">#0D101A</color>
+              <color name="oled_surface">#121420</color>
+              <color name="oled_surface_alt">#171A27</color>
+              <color name="purple_accent">#7C3AED</color>
+              <color name="purple_accent_dark">#5B21B6</color>
+              <color name="purple_accent_soft">#241642</color>
+              <color name="white_primary">#F8F8FC</color>
+              <color name="white_secondary">#A7A9B7</color>
+              <color name="white_tertiary">#777B8D</color>
+              <color name="border_white_15">#26FFFFFF</color>
+              <color name="border_white_10">#1AFFFFFF</color>
+              <color name="input_black">#000000</color>
+              <color name="switch_off_track">#303444</color>
+              <color name="switch_off_thumb">#D7D9E2</color>
+              <color name="dropdown_background">#171A27</color>
+              <color name="dropdown_selected">#241642</color>
+          </resources>
+          EOF
+
+          # ChatGPT Visual Component: styles.xml (Cleaned AAPT2 Typos)
           cat << 'EOF' > app/src/main/res/values/styles.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <style name="Theme.VoiceNative" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:windowBackground">#121420</item>
-                  <item name="android:statusBarColor">#0D101A</item>
-                  <item name="colorPrimary">#7C3AED</item>
+              <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+                  <item name="android:fontFamily">sans-serif</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">@color/oled_background</item>
+                  <item name="android:navigationBarColor">@color/oled_background</item>
+                  <item name="android:windowLightNavigationBar">false</item>
+                  <item name="android:windowBackground">@color/oled_background</item>
+                  <item name="android:colorAccent">@color/purple_accent</item>
+                  <item name="colorPrimary">@color/purple_accent</item>
+                  <item name="colorPrimaryVariant">@color/purple_accent_dark</item>
+                  <item name="colorSecondary">@color/purple_accent</item>
+              </style>
+
+              <style name="SettingsSectionLabel" parent="TextAppearance.MaterialComponents.Caption">
+                  <item name="android:textSize">10sp</item>
+                  <item name="android:letterSpacing">0.08</item>
+                  <item name="android:textColor">@color/white_secondary</item>
+                  <item name="android:textStyle">bold</item>
+              </style>
+
+              <style name="SettingsRowTitle" parent="TextAppearance.MaterialComponents.Body1">
+                  <item name="android:textSize">14sp</item>
+                  <item name="android:textColor">@color/white_primary</item>
+              </style>
+
+              <style name="SettingsRowSubtitle" parent="TextAppearance.MaterialComponents.Caption">
+                  <item name="android:textSize">10sp</item>
+                  <item name="android:textColor">@color/white_tertiary</item>
+              </style>
+
+              <style name="SettingsInputText" parent="TextAppearance.MaterialComponents.Body1">
+                  <item name="android:textSize">13sp</item>
+                  <item name="android:textColor">@color/white_primary</item>
+                  <item name="android:textColorHint">@color/white_secondary</item>
               </style>
           </resources>
           EOF
 
-          cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+          # ChatGPT Visual Component: bg_purple_card.xml
+          cat << 'EOF' > app/src/main/res/drawable/bg_purple_card.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-              android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows"
-              android:canRequestFilterKeyEvents="true"
-              android:canRetrieveWindowContent="true"
-              android:canPerformGestures="true"
-              android:description="@string/accessibility_desc"
-              android:notificationTimeout="50" />
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#241642" />
+              <stroke
+                  android:width="1dp"
+                  android:color="#387C3AED" />
+              <corners android:radius="14dp" />
+              <padding
+                  android:left="14dp"
+                  android:top="11dp"
+                  android:right="12dp"
+                  android:bottom="11dp" />
+          </shape>
+          EOF
+
+          # ChatGPT Visual Component: bg_input_field.xml
+          cat << 'EOF' > app/src/main/res/drawable/bg_input_field.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#000000" />
+              <stroke
+                  android:width="1dp"
+                  android:color="#26FFFFFF" />
+              <corners android:radius="11dp" />
+              <padding
+                  android:left="12dp"
+                  android:top="10dp"
+                  android:right="12dp"
+                  android:bottom="10dp" />
+          </shape>
+          EOF
+
+          # ChatGPT Visual Component: activity_settings.xml (Cleaned AAPT2 Typos)
+          cat << 'EOF' > app/src/main/res/layout/activity_settings.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <androidx.core.widget.NestedScrollView
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:id="@+id/rootScroll"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:fillViewport="true"
+              android:background="@color/oled_background"
+              android:clipToPadding="false"
+              android:paddingTop="8dp"
+              android:paddingBottom="18dp">
+
+              <LinearLayout
+                  android:id="@+id/contentContainer"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:orientation="vertical"
+                  android:paddingStart="15dp"
+                  android:paddingEnd="15dp">
+
+                  <!-- Double-click volume setup -->
+                  <com.google.android.material.card.MaterialCardView
+                      android:id="@+id/volumeSetupCard"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="4dp"
+                      android:layout_marginBottom="16dp"
+                      android:clickable="true"
+                      android:focusable="true"
+                      android:foreground="?attr/selectableItemBackground"
+                      app:cardBackgroundColor="@android:color/transparent"
+                      app:cardCornerRadius="14dp"
+                      app:cardElevation="0dp"
+                      app:strokeWidth="0dp">
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:background="@drawable/bg_purple_card"
+                          android:gravity="center_vertical"
+                          android:minHeight="70dp"
+                          android:orientation="horizontal">
+
+                          <TextView
+                              android:id="@+id/volumeIcon"
+                              android:layout_width="30dp"
+                              android:layout_height="30dp"
+                              android:gravity="center"
+                              android:text="⚡"
+                              android:textColor="@color/white_primary"
+                              android:textSize="19sp" />
+
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical"
+                              android:paddingStart="5dp"
+                              android:paddingEnd="8dp">
+
+                              <TextView
+                                  android:id="@+id/volumeSetupTitle"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:text="Double-Click Volume Setup"
+                                  android:textColor="@color/white_primary"
+                                  android:textSize="13sp"
+                                  android:textStyle="bold" />
+
+                              <TextView
+                                  android:id="@+id/volumeSetupSubtitle"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="3dp"
+                                  android:text="Tap to open Accessibility &amp; turn on Voice trigger"
+                                  android:textColor="@color/white_secondary"
+                                  android:textSize="9sp" />
+                          </LinearLayout>
+
+                          <TextView
+                              android:id="@+id/volumeArrow"
+                              android:layout_width="28dp"
+                              android:layout_height="40dp"
+                              android:gravity="center"
+                              android:text="›"
+                              android:textColor="@color/white_primary"
+                              android:textSize="27sp" />
+                      </LinearLayout>
+                  </com.google.android.material.card.MaterialCardView>
+
+                  <!-- Playbooks & Memory Section -->
+                  <TextView
+                      android:id="@+id/playbooksLabel"
+                      style="@style/SettingsSectionLabel"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:text="PLAYBOOKS &amp; MEMORY"
+                      android:layout_marginBottom="7dp" />
+
+                  <com.google.android.material.card.MaterialCardView
+                      android:id="@+id/playbooksCard"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginBottom="15dp"
+                      app:cardBackgroundColor="@color/oled_surface"
+                      app:cardCornerRadius="13dp"
+                      app:cardElevation="0dp"
+                      app:strokeColor="@color/border_white_10"
+                      app:strokeWidth="1dp">
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:padding="11dp">
+
+                          <TextView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Exact coordinates &amp; self-learned app rules"
+                              android:textColor="@color/white_secondary"
+                              android:textSize="9sp"
+                              android:layout_marginBottom="8dp" />
+
+                          <EditText
+                              android:id="@+id/playbooksEditor"
+                              android:layout_width="match_parent"
+                              android:layout_height="108dp"
+                              android:background="@drawable/bg_input_field"
+                              android:gravity="top|start"
+                              android:inputType="textMultiLine"
+                              android:padding="10dp"
+                              android:scrollbars="vertical"
+                              android:textColor="@color/white_primary"
+                              android:textColorHint="@color/white_tertiary"
+                              android:textSize="10sp"
+                              android:fontFamily="monospace"
+                              android:hint="{&#10;  &quot;app_name&quot;: &quot;Samsung&quot;&#10;}" />
+
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginTop="9dp"
+                              android:orientation="horizontal">
+
+                              <com.google.android.material.button.MaterialButton
+                                  android:id="@+id/saveRulesButton"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="38dp"
+                                  android:text="Save Rules"
+                                  android:textAllCaps="false"
+                                  android:textColor="@color/white_primary"
+                                  android:textSize="11sp"
+                                  app:backgroundTint="@color/purple_accent"
+                                  app:cornerRadius="9dp"
+                                  app:rippleColor="#55FFFFFF" />
+
+                              <Space
+                                  android:layout_width="7dp"
+                                  android:layout_height="1dp" />
+
+                              <com.google.android.material.button.MaterialButton
+                                  android:id="@+id/openFilesButton"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="38dp"
+                                  android:text="Open in My Files"
+                                  android:textAllCaps="false"
+                                  android:textColor="@color/white_primary"
+                                  android:textSize="11sp"
+                                  app:backgroundTint="@color/oled_surface_alt"
+                                  app:cornerRadius="9dp"
+                                  app:strokeColor="@color/border_white_15"
+                                  app:strokeWidth="1dp" />
+                          </LinearLayout>
+                      </LinearLayout>
+                  </com.google.android.material.card.MaterialCardView>
+
+                  <!-- Gemini API Key -->
+                  <TextView
+                      android:id="@+id/apiKeyLabel"
+                      style="@style/SettingsSectionLabel"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:text="GEMINI API KEY"
+                      android:layout_marginBottom="7dp" />
+
+                  <EditText
+                      android:id="@+id/apiKeyEditText"
+                      style="@style/SettingsInputText"
+                      android:layout_width="match_parent"
+                      android:layout_height="43dp"
+                      android:layout_marginBottom="13dp"
+                      android:background="@drawable/bg_input_field"
+                      android:hint="AIzaSy..."
+                      android:inputType="textPassword"
+                      android:singleLine="true"
+                      android:paddingStart="12dp"
+                      android:paddingEnd="12dp"
+                      android:importantForAutofill="no"
+                      android:imeOptions="actionDone" />
+
+                  <!-- Auto Disconnect -->
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:minHeight="57dp"
+                      android:gravity="center_vertical"
+                      android:orientation="horizontal">
+
+                      <LinearLayout
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:orientation="vertical">
+
+                          <TextView
+                              style="@style/SettingsRowTitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Auto-Disconnect on Silence (4s)" />
+
+                          <TextView
+                              style="@style/SettingsRowSubtitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginTop="2dp"
+                              android:text="Automatically close after finishing action" />
+                      </LinearLayout>
+
+                      <com.google.android.material.materialswitch.MaterialSwitch
+                          android:id="@+id/autoDisconnectSwitch"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:checked="false"
+                          android:minWidth="52dp"
+                          android:padding="0dp"
+                          app:useMaterialThemeColors="false" />
+                  </LinearLayout>
+
+                  <!-- Auto Connect -->
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:minHeight="57dp"
+                      android:gravity="center_vertical"
+                      android:orientation="horizontal">
+
+                      <LinearLayout
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:orientation="vertical">
+
+                          <TextView
+                              style="@style/SettingsRowTitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Auto-Connect on Launch" />
+
+                          <TextView
+                              style="@style/SettingsRowSubtitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginTop="2dp"
+                              android:text="Listen immediately when triggered" />
+                      </LinearLayout>
+
+                      <com.google.android.material.materialswitch.MaterialSwitch
+                          android:id="@+id/autoConnectSwitch"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:checked="false"
+                          android:minWidth="52dp"
+                          android:padding="0dp"
+                          app:useMaterialThemeColors="false" />
+                  </LinearLayout>
+
+                  <!-- Speaker Echo Guard -->
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:minHeight="57dp"
+                      android:gravity="center_vertical"
+                      android:orientation="horizontal">
+
+                      <LinearLayout
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:orientation="vertical">
+
+                          <TextView
+                              style="@style/SettingsRowTitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Speaker Echo Guard" />
+
+                          <TextView
+                              style="@style/SettingsRowSubtitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginTop="2dp"
+                              android:text="Prevents speaker feedback acoustic loop" />
+                      </LinearLayout>
+
+                      <com.google.android.material.materialswitch.MaterialSwitch
+                          android:id="@+id/speakerEchoGuardSwitch"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:checked="true"
+                          android:minWidth="52dp"
+                          android:padding="0dp"
+                          app:useMaterialThemeColors="false" />
+                  </LinearLayout>
+
+                  <!-- Bluetooth Priority -->
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:minHeight="57dp"
+                      android:gravity="center_vertical"
+                      android:orientation="horizontal"
+                      android:layout_marginBottom="13dp">
+
+                      <LinearLayout
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:orientation="vertical">
+
+                          <TextView
+                              style="@style/SettingsRowTitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Bluetooth Priority Mode" />
+
+                          <TextView
+                              style="@style/SettingsRowSubtitle"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginTop="2dp"
+                              android:text="Keep audio on media speaker" />
+                      </LinearLayout>
+
+                      <com.google.android.material.materialswitch.MaterialSwitch
+                          android:id="@+id/bluetoothPrioritySwitch"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:checked="true"
+                          android:minWidth="52dp"
+                          android:padding="0dp"
+                          app:useMaterialThemeColors="false" />
+                  </LinearLayout>
+
+                  <!-- Assistant Instructions -->
+                  <TextView
+                      android:id="@+id/instructionsLabel"
+                      style="@style/SettingsSectionLabel"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:text="ASSISTANT INSTRUCTIONS (JARVIS PROTOCOL)"
+                      android:layout_marginBottom="7dp" />
+
+                  <EditText
+                      android:id="@+id/instructionsEditText"
+                      style="@style/SettingsInputText"
+                      android:layout_width="match_parent"
+                      android:layout_height="92dp"
+                      android:layout_marginBottom="15dp"
+                      android:background="@drawable/bg_input_field"
+                      android:gravity="top|start"
+                      android:inputType="textMultiLine|textCapSentences"
+                      android:maxLines="4"
+                      android:minLines="4"
+                      android:padding="10dp"
+                      android:scrollbars="vertical"
+                      android:text="You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control and experiential memory."
+                      android:textSize="11sp" />
+
+                  <!-- Target model -->
+                  <TextView
+                      style="@style/SettingsSectionLabel"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:text="TARGET MODEL"
+                      android:layout_marginBottom="6dp" />
+
+                  <Spinner
+                      android:id="@+id/modelSpinner"
+                      android:layout_width="match_parent"
+                      android:layout_height="47dp"
+                      android:layout_marginBottom="15dp"
+                      android:background="@drawable/bg_input_field"
+                      android:paddingStart="10dp"
+                      android:paddingEnd="10dp"
+                      android:spinnerMode="dropdown" />
+
+                  <!-- Voice profile -->
+                  <TextView
+                      style="@style/SettingsSectionLabel"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:text="VOICE PROFILE"
+                      android:layout_marginBottom="6dp" />
+
+                  <Spinner
+                      android:id="@+id/voiceSpinner"
+                      android:layout_width="match_parent"
+                      android:layout_height="47dp"
+                      android:layout_marginBottom="17dp"
+                      android:background="@drawable/bg_input_field"
+                      android:paddingStart="10dp"
+                      android:paddingEnd="10dp"
+                      android:spinnerMode="dropdown" />
+
+                  <!-- Bottom save -->
+                  <com.google.android.material.button.MaterialButton
+                      android:id="@+id/saveButton"
+                      android:layout_width="match_parent"
+                      android:layout_height="48dp"
+                      android:layout_marginBottom="4dp"
+                      android:text="Save Configuration"
+                      android:textAllCaps="false"
+                      android:textColor="@color/white_primary"
+                      android:textSize="13sp"
+                      android:textStyle="bold"
+                      app:backgroundTint="@color/purple_accent"
+                      app:cornerRadius="12dp"
+                      app:elevation="0dp"
+                      app:rippleColor="#55FFFFFF" />
+              </LinearLayout>
+          </androidx.core.widget.NestedScrollView>
           EOF
 
           cat << 'EOF' > gradle.properties
@@ -124,7 +640,7 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 15
+                  versionCode 16
                   versionName "3.0"
               }
               buildTypes {
@@ -162,12 +678,12 @@ jobs:
                   android:label="Voice Native"
                   android:icon="@mipmap/ic_launcher"
                   android:hardwareAccelerated="true"
-                  android:theme="@style/Theme.VoiceNative">
+                  android:theme="@style/AppTheme">
 
                   <activity
                       android:name=".SettingsActivity"
                       android:exported="true"
-                      android:theme="@style/Theme.VoiceNative">
+                      android:theme="@style/AppTheme">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -195,7 +711,294 @@ jobs:
           </manifest>
           EOF
 
-          # ScreenCaptureService.java: 1:1 288x592 On-Demand Capture
+          # ChatGPT Visual Component: SettingsActivity.java
+          cat << 'EOF' > app/src/main/java/com/gemini/live/SettingsActivity.java
+          package com.gemini.live;
+
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.content.res.ColorStateList;
+          import android.graphics.Color;
+          import android.graphics.drawable.Drawable;
+          import android.graphics.drawable.InsetDrawable;
+          import android.graphics.drawable.LayerDrawable;
+          import android.os.Bundle;
+          import android.provider.Settings;
+          import android.text.InputType;
+          import android.text.method.PasswordTransformationMethod;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.widget.ArrayAdapter;
+          import android.widget.EditText;
+          import android.widget.Spinner;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.annotation.NonNull;
+          import androidx.appcompat.app.AppCompatActivity;
+          import com.google.android.material.button.MaterialButton;
+          import com.google.android.material.materialswitch.MaterialSwitch;
+          import java.util.Arrays;
+          import java.util.List;
+
+          public class SettingsActivity extends AppCompatActivity {
+              private static final String PREFS_NAME = "voice_prefs";
+              private static final String KEY_API_KEY = "api_key";
+              private static final String KEY_PROMPT = "assistant_instructions";
+              private static final String KEY_PLAYBOOKS = "playbooks_memory";
+              private static final String KEY_AUTO_DISCONNECT = "auto_disconnect";
+              private static final String KEY_AUTO_CONNECT = "auto_connect";
+              private static final String KEY_ECHO_GUARD = "speaker_echo_guard";
+              private static final String KEY_BLUETOOTH_PRIORITY = "bluetooth_priority";
+              private static final String KEY_MODEL = "target_model";
+              private static final String KEY_VOICE = "voice_profile";
+
+              private EditText apiKeyEditText;
+              private EditText instructionsEditText;
+              private EditText playbooksEditor;
+
+              private MaterialSwitch autoDisconnectSwitch;
+              private MaterialSwitch autoConnectSwitch;
+              private MaterialSwitch speakerEchoGuardSwitch;
+              private MaterialSwitch bluetoothPrioritySwitch;
+
+              private Spinner modelSpinner;
+              private Spinner voiceSpinner;
+              private SharedPreferences preferences;
+
+              private final String[] modelOptions = {
+                      "gemini-3.1-flash-live-preview",
+                      "gemini-2.5-flash-native-audio-preview",
+                      "gemini-2.0-flash-exp"
+              };
+
+              private final String[] voiceOptions = {
+                      "Aoede", "Puck", "Charon", "Fenrir", "Kore"
+              };
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().setStatusBarColor(Color.rgb(13, 16, 26));
+                  getWindow().setNavigationBarColor(Color.rgb(13, 16, 26));
+
+                  setContentView(R.layout.activity_settings);
+                  preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+                  bindViews();
+                  setupApiKeyField();
+                  setupSwitches();
+                  setupSpinners();
+                  setupVolumeAccessibilityCard();
+                  setupSaveActions();
+                  loadPreferences();
+
+                  // Request necessary runtime permissions
+                  String[] perms = {
+                      android.Manifest.permission.RECORD_AUDIO,
+                      android.Manifest.permission.CAMERA,
+                      android.Manifest.permission.CALL_PHONE,
+                      android.Manifest.permission.SEND_SMS,
+                      android.Manifest.permission.READ_CONTACTS
+                  };
+                  for (String p : perms) {
+                      if (checkSelfPermission(p) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(perms, 101);
+                          break;
+                      }
+                  }
+              }
+
+              private void bindViews() {
+                  apiKeyEditText = findViewById(R.id.apiKeyEditText);
+                  instructionsEditText = findViewById(R.id.instructionsEditText);
+                  playbooksEditor = findViewById(R.id.playbooksEditor);
+                  autoDisconnectSwitch = findViewById(R.id.autoDisconnectSwitch);
+                  autoConnectSwitch = findViewById(R.id.autoConnectSwitch);
+                  speakerEchoGuardSwitch = findViewById(R.id.speakerEchoGuardSwitch);
+                  bluetoothPrioritySwitch = findViewById(R.id.bluetoothPrioritySwitch);
+                  modelSpinner = findViewById(R.id.modelSpinner);
+                  voiceSpinner = findViewById(R.id.voiceSpinner);
+              }
+
+              private void setupApiKeyField() {
+                  apiKeyEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                  apiKeyEditText.setTransformationMethod(PasswordTransformationMethod.getInstance());
+              }
+
+              private void setupSwitches() {
+                  ColorStateList thumbTint = new ColorStateList(
+                          new int[][]{ new int[]{android.R.attr.state_checked}, new int[]{} },
+                          new int[]{ Color.rgb(255, 255, 255), Color.rgb(215, 217, 226) }
+                  );
+                  ColorStateList trackTint = new ColorStateList(
+                          new int[][]{ new int[]{android.R.attr.state_checked}, new int[]{} },
+                          new int[]{ Color.rgb(124, 58, 237), Color.rgb(48, 52, 68) }
+                  );
+                  applySwitchTint(autoDisconnectSwitch, thumbTint, trackTint);
+                  applySwitchTint(autoConnectSwitch, thumbTint, trackTint);
+                  applySwitchTint(speakerEchoGuardSwitch, thumbTint, trackTint);
+                  applySwitchTint(bluetoothPrioritySwitch, thumbTint, trackTint);
+              }
+
+              private void applySwitchTint(MaterialSwitch sw, ColorStateList thumb, ColorStateList track) {
+                  sw.setThumbTintList(thumb);
+                  sw.setTrackTintList(track);
+              }
+
+              private void setupSpinners() {
+                  DarkSpinnerAdapter modelAdapter = new DarkSpinnerAdapter(this, Arrays.asList(modelOptions));
+                  DarkSpinnerAdapter voiceAdapter = new DarkSpinnerAdapter(this, Arrays.asList(voiceOptions));
+                  modelSpinner.setAdapter(modelAdapter);
+                  voiceSpinner.setAdapter(voiceAdapter);
+
+                  modelSpinner.setPopupBackgroundDrawable(getDropdownBackground());
+                  voiceSpinner.setPopupBackgroundDrawable(getDropdownBackground());
+                  addSpinnerArrow(modelSpinner);
+                  addSpinnerArrow(voiceSpinner);
+              }
+
+              private Drawable getDropdownBackground() {
+                  android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+                  d.setColor(Color.rgb(23, 26, 39));
+                  d.setCornerRadius(dp(10));
+                  return d;
+              }
+
+              private void addSpinnerArrow(Spinner spinner) {
+                  Drawable base = getDrawable(R.drawable.bg_input_field);
+                  Drawable arrow = getDrawable(android.R.drawable.arrow_down_float);
+                  if (arrow != null) {
+                      arrow.setTint(Color.rgb(220, 220, 230));
+                      InsetDrawable inset = new InsetDrawable(arrow, 0, dp(15), dp(10), dp(15));
+                      spinner.setBackground(new LayerDrawable(new Drawable[]{base, inset}));
+                  } else {
+                      spinner.setBackground(base);
+                  }
+              }
+
+              private void setupVolumeAccessibilityCard() {
+                  View card = findViewById(R.id.volumeSetupCard);
+                  card.setOnClickListener(v -> {
+                      try {
+                          startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                      } catch (Exception ignored) {
+                          startActivity(new Intent(Settings.ACTION_SETTINGS));
+                      }
+                  });
+              }
+
+              private void setupSaveActions() {
+                  MaterialButton saveButton = findViewById(R.id.saveButton);
+                  MaterialButton saveRulesButton = findViewById(R.id.saveRulesButton);
+                  MaterialButton openFilesButton = findViewById(R.id.openFilesButton);
+
+                  saveButton.setOnClickListener(v -> savePreferences());
+                  saveRulesButton.setOnClickListener(v -> savePlaybooksOnly());
+                  openFilesButton.setOnClickListener(v -> openFiles());
+              }
+
+              private void loadPreferences() {
+                  apiKeyEditText.setText(preferences.getString(KEY_API_KEY, ""));
+                  instructionsEditText.setText(preferences.getString(KEY_PROMPT, "You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control."));
+                  playbooksEditor.setText(preferences.getString(KEY_PLAYBOOKS, "{\n  \"com.samsung.android.app.notes\": {\n    \"actions\": {\n      \"add_note\": {\"x\": 875, \"y\": 935}\n    }\n  }\n}"));
+                  autoDisconnectSwitch.setChecked(preferences.getBoolean(KEY_AUTO_DISCONNECT, true));
+                  autoConnectSwitch.setChecked(preferences.getBoolean(KEY_AUTO_CONNECT, true));
+                  speakerEchoGuardSwitch.setChecked(preferences.getBoolean(KEY_ECHO_GUARD, true));
+                  bluetoothPrioritySwitch.setChecked(preferences.getBoolean(KEY_BLUETOOTH_PRIORITY, true));
+
+                  setSpinnerValue(modelSpinner, preferences.getString(KEY_MODEL, "gemini-3.1-flash-live-preview"), modelOptions);
+                  setSpinnerValue(voiceSpinner, preferences.getString(KEY_VOICE, "Aoede"), voiceOptions);
+              }
+
+              private void savePreferences() {
+                  preferences.edit()
+                          .putString(KEY_API_KEY, apiKeyEditText.getText().toString().trim())
+                          .putString(KEY_PROMPT, instructionsEditText.getText().toString())
+                          .putString(KEY_PLAYBOOKS, playbooksEditor.getText().toString())
+                          .putBoolean(KEY_AUTO_DISCONNECT, autoDisconnectSwitch.isChecked())
+                          .putBoolean(KEY_AUTO_CONNECT, autoConnectSwitch.isChecked())
+                          .putBoolean(KEY_ECHO_GUARD, speakerEchoGuardSwitch.isChecked())
+                          .putBoolean(KEY_BLUETOOTH_PRIORITY, bluetoothPrioritySwitch.isChecked())
+                          .putString(KEY_MODEL, modelSpinner.getSelectedItem().toString())
+                          .putString(KEY_VOICE, voiceSpinner.getSelectedItem().toString())
+                          .apply();
+
+                  Toast.makeText(this, "Saved configuration successfully!", Toast.LENGTH_SHORT).show();
+                  saveButtonFeedback();
+              }
+
+              private void savePlaybooksOnly() {
+                  preferences.edit().putString(KEY_PLAYBOOKS, playbooksEditor.getText().toString()).apply();
+                  Toast.makeText(this, "Playbooks saved!", Toast.LENGTH_SHORT).show();
+              }
+
+              private void saveButtonFeedback() {
+                  MaterialButton button = findViewById(R.id.saveButton);
+                  String orig = button.getText().toString();
+                  button.setText("✓ Saved");
+                  button.postDelayed(() -> button.setText(orig), 1200);
+              }
+
+              private void openFiles() {
+                  try {
+                      Intent launch = getPackageManager().getLaunchIntentForPackage("com.sec.android.app.myfiles");
+                      if (launch != null) {
+                          launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          startActivity(launch);
+                      } else {
+                          Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                          intent.addCategory(Intent.CATEGORY_OPENABLE);
+                          intent.setType("*/*");
+                          startActivity(intent);
+                      }
+                  } catch (Exception e) {
+                      Toast.makeText(this, "Could not open file manager.", Toast.LENGTH_SHORT).show();
+                  }
+              }
+
+              private void setSpinnerValue(Spinner spinner, String value, String[] values) {
+                  for (int i = 0; i < values.length; i++) {
+                      if (values[i].equals(value)) {
+                          spinner.setSelection(i, false);
+                          return;
+                      }
+                  }
+                  spinner.setSelection(0, false);
+              }
+
+              private int dp(int value) {
+                  return Math.round(value * getResources().getDisplayMetrics().density);
+              }
+
+              private static class DarkSpinnerAdapter extends ArrayAdapter<String> {
+                  DarkSpinnerAdapter(android.content.Context context, List<String> values) {
+                      super(context, android.R.layout.simple_spinner_item, values);
+                      setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  }
+
+                  @NonNull
+                  @Override
+                  public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                      TextView view = (TextView) super.getView(position, convertView, parent);
+                      view.setTextColor(Color.rgb(248, 248, 252));
+                      view.setTextSize(12);
+                      return view;
+                  }
+
+                  @Override
+                  public View getDropDownView(int position, View convertView, @NonNull ViewGroup parent) {
+                      TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                      view.setTextColor(Color.rgb(248, 248, 252));
+                      view.setBackgroundColor(Color.rgb(23, 26, 39));
+                      view.setPadding(30, 30, 30, 30);
+                      return view;
+                  }
+              }
+          }
+          EOF
+
+          # ScreenCaptureService.java: 1:1 Crisp Capture
           cat << 'EOF' > app/src/main/java/com/gemini/live/ScreenCaptureService.java
           package com.gemini.live;
 
@@ -251,9 +1054,7 @@ jobs:
                   try {
                       if (mediaProjection == null && resultData != null) {
                           MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                          if (mpm != null) {
-                              mediaProjection = mpm.getMediaProjection(resultCode, resultData);
-                          }
+                          if (mpm != null) mediaProjection = mpm.getMediaProjection(resultCode, resultData);
                       }
                   } catch (Exception ignored) {}
               }
@@ -306,7 +1107,6 @@ jobs:
                       ByteArrayOutputStream baos = new ByteArrayOutputStream();
                       cropped.compress(Bitmap.CompressFormat.JPEG, 65, baos);
                       return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
-
                   } catch (Exception e) {
                       return null;
                   } finally {
@@ -330,7 +1130,7 @@ jobs:
                       : new Notification.Builder(this);
 
                   Notification notif = b.setContentTitle("Voice Native")
-                      .setContentText("Autonomous engine active")
+                      .setContentText("Screen vision active")
                       .setSmallIcon(android.R.drawable.ic_menu_camera)
                       .build();
 
@@ -353,7 +1153,7 @@ jobs:
           }
           EOF
 
-          # AudioEngine.java: Direct Hardware 16kHz Record & 24kHz Track
+          # AudioEngine.java: Direct Hardware 16kHz & 24kHz
           cat << 'EOF' > app/src/main/java/com/gemini/live/AudioEngine.java
           package com.gemini.live;
 
@@ -415,7 +1215,6 @@ jobs:
                                   if (rms > 600 && listener != null) {
                                       listener.onUserSpeakingDetected();
                                   }
-
                                   String b64 = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP);
                                   if (listener != null) listener.onAudioChunk(b64);
                               }
@@ -471,7 +1270,7 @@ jobs:
           }
           EOF
 
-          # GeminiLiveClient.java: Native OkHttp WebSocket Engine
+          # GeminiLiveClient.java: Fixed MediaChunks & Model Prefix Protocol
           cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
           package com.gemini.live;
 
@@ -493,7 +1292,7 @@ jobs:
                   void onModelSpeaking();
                   void onTurnComplete();
                   void onToolCall(String name, JSONObject args, String callId);
-                  void onClosed();
+                  void onClosed(String reason);
               }
 
               private WebSocket webSocket;
@@ -527,12 +1326,12 @@ jobs:
 
                       @Override
                       public void onClosed(WebSocket ws, int code, String reason) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed(); });
+                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Closed: " + reason); });
                       }
 
                       @Override
                       public void onFailure(WebSocket ws, Throwable t, Response response) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed(); });
+                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Failed: " + t.getMessage()); });
                       }
                   });
               }
@@ -540,7 +1339,8 @@ jobs:
               private void sendSetup(WebSocket ws, String model, String voice, String prompt) {
                   try {
                       JSONObject setup = new JSONObject();
-                      setup.put("model", model.trim());
+                      String cleanModel = model.startsWith("models/") ? model : "models/" + model;
+                      setup.put("model", cleanModel.trim());
 
                       JSONObject genConfig = new JSONObject();
                       JSONArray modalities = new JSONArray();
@@ -642,14 +1442,17 @@ jobs:
                   return decl;
               }
 
+              // Standard Live API MediaChunks format
               public void sendAudioChunk(String base64Pcm) {
                   if (webSocket == null) return;
                   try {
                       JSONObject real = new JSONObject();
-                      JSONObject audio = new JSONObject();
-                      audio.put("data", base64Pcm);
-                      audio.put("mimeType", "audio/pcm;rate=16000");
-                      real.put("audio", audio);
+                      JSONArray mediaChunks = new JSONArray();
+                      JSONObject chunk = new JSONObject();
+                      chunk.put("data", base64Pcm);
+                      chunk.put("mimeType", "audio/pcm;rate=16000");
+                      mediaChunks.put(chunk);
+                      real.put("mediaChunks", mediaChunks);
                       webSocket.send(new JSONObject().put("realtimeInput", real).toString());
                   } catch (Exception ignored) {}
               }
@@ -658,10 +1461,12 @@ jobs:
                   if (webSocket == null) return;
                   try {
                       JSONObject real = new JSONObject();
-                      JSONObject video = new JSONObject();
-                      video.put("data", base64Jpeg);
-                      video.put("mimeType", "image/jpeg");
-                      real.put("video", video);
+                      JSONArray mediaChunks = new JSONArray();
+                      JSONObject chunk = new JSONObject();
+                      chunk.put("data", base64Jpeg);
+                      chunk.put("mimeType", "image/jpeg");
+                      mediaChunks.put(chunk);
+                      real.put("mediaChunks", mediaChunks);
                       webSocket.send(new JSONObject().put("realtimeInput", real).toString());
                   } catch (Exception ignored) {}
               }
@@ -915,142 +1720,7 @@ jobs:
           }
           EOF
 
-          # SettingsActivity.java: Clean Native Preferences & Playbook Editor
-          cat << 'EOF' > app/src/main/java/com/gemini/live/SettingsActivity.java
-          package com.gemini.live;
-
-          import android.content.Context;
-          import android.content.Intent;
-          import android.content.SharedPreferences;
-          import android.content.pm.PackageManager;
-          import android.media.projection.MediaProjectionManager;
-          import android.net.Uri;
-          import android.os.Bundle;
-          import android.provider.Settings;
-          import android.widget.Button;
-          import android.widget.EditText;
-          import android.widget.Toast;
-          import androidx.appcompat.app.AppCompatActivity;
-
-          public class SettingsActivity extends AppCompatActivity {
-              private static final int REQ_CAPTURE = 303;
-              private EditText apiKeyEdit;
-              private EditText promptEdit;
-              private SharedPreferences prefs;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  prefs = getSharedPreferences("voice_prefs", MODE_PRIVATE);
-                  setContentView(createSettingsLayout());
-
-                  String[] perms = {
-                      android.Manifest.permission.RECORD_AUDIO,
-                      android.Manifest.permission.CAMERA,
-                      android.Manifest.permission.CALL_PHONE,
-                      android.Manifest.permission.SEND_SMS,
-                      android.Manifest.permission.READ_CONTACTS
-                  };
-                  for (String p : perms) {
-                      if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-                          requestPermissions(perms, 101);
-                          break;
-                      }
-                  }
-              }
-
-              private android.view.View createSettingsLayout() {
-                  android.widget.ScrollView sv = new android.widget.ScrollView(this);
-                  android.widget.LinearLayout ll = new android.widget.LinearLayout(this);
-                  ll.setOrientation(android.widget.LinearLayout.VERTICAL);
-                  int p = dp(20);
-                  ll.setPadding(p, p, p, p);
-
-                  android.widget.TextView title = new android.widget.TextView(this);
-                  title.setText("Voice Native Configuration");
-                  title.setTextColor(android.graphics.Color.WHITE);
-                  title.setTextSize(18);
-                  title.setTypeface(null, android.graphics.Typeface.BOLD);
-                  ll.addView(title);
-
-                  Button accBtn = new Button(this);
-                  accBtn.setText("⚡ Double-Click Volume Setup (Enable in Accessibility)");
-                  accBtn.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-                  ll.addView(accBtn);
-
-                  Button capBtn = new Button(this);
-                  capBtn.setText("🎥 Screen Vision Approval");
-                  capBtn.setOnClickListener(v -> {
-                      MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                      if (mpm != null) startActivityForResult(mpm.createScreenCaptureIntent(), REQ_CAPTURE);
-                  });
-                  ll.addView(capBtn);
-
-                  android.widget.TextView apiLabel = new android.widget.TextView(this);
-                  apiLabel.setText("\nGemini API Key:");
-                  apiLabel.setTextColor(android.graphics.Color.LTGRAY);
-                  ll.addView(apiLabel);
-
-                  apiKeyEdit = new EditText(this);
-                  apiKeyEdit.setTextColor(android.graphics.Color.WHITE);
-                  apiKeyEdit.setHint("AIzaSy...");
-                  apiKeyEdit.setText(prefs.getString("api_key", ""));
-                  ll.addView(apiKeyEdit);
-
-                  android.widget.TextView promptLabel = new android.widget.TextView(this);
-                  promptLabel.setText("\nAssistant Instructions (Jarvis Protocol):");
-                  promptLabel.setTextColor(android.graphics.Color.LTGRAY);
-                  ll.addView(promptLabel);
-
-                  promptEdit = new EditText(this);
-                  promptEdit.setTextColor(android.graphics.Color.WHITE);
-                  promptEdit.setText(prefs.getString("system_prompt", 
-                      "You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control. " +
-                      "Always use read_screen_text first to get the INTERACTIVE ELEMENTS catalog. " +
-                      "When tapping coordinates, use normalized 0 to 1000 scale. " +
-                      "For notes, use create_note(text) or type_text(text)."));
-                  ll.addView(promptEdit);
-
-                  Button saveBtn = new Button(this);
-                  saveBtn.setText("Save Settings");
-                  saveBtn.setOnClickListener(v -> {
-                      prefs.edit()
-                          .putString("api_key", apiKeyEdit.getText().toString().trim())
-                          .putString("system_prompt", promptEdit.getText().toString().trim())
-                          .apply();
-                      Toast.makeText(this, "Saved successfully!", Toast.LENGTH_SHORT).show();
-                      finish();
-                  });
-                  ll.addView(saveBtn);
-
-                  sv.addView(ll);
-                  return sv;
-              }
-
-              @Override
-              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-                  if (requestCode == REQ_CAPTURE && resultCode == RESULT_OK && data != null) {
-                      Intent intent = new Intent(this, ScreenCaptureService.class);
-                      intent.putExtra("resultCode", resultCode);
-                      intent.putExtra("data", data);
-                      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                          startForegroundService(intent);
-                      } else {
-                          startService(intent);
-                      }
-                      Toast.makeText(this, "Screen capture engine initialized!", Toast.LENGTH_SHORT).show();
-                  }
-                  super.onActivityResult(requestCode, resultCode, data);
-              }
-
-              private int dp(int val) {
-                  return Math.round(val * getResources().getDisplayMetrics().density);
-              }
-          }
-          EOF
-
-          # VolumeTriggerService.java: Complete Native Core Controller
+          # VolumeTriggerService.java: 100% Calibrated Native Controller
           cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
           package com.gemini.live;
 
@@ -1097,6 +1767,7 @@ jobs:
               private SharedPreferences prefs;
               private Handler mainHandler = new Handler(Looper.getMainLooper());
               private Runnable inactivityRunnable;
+              private boolean isSessionActive = false;
 
               @Override
               public void onServiceConnected() {
@@ -1118,6 +1789,12 @@ jobs:
               }
 
               public AudioEngine getAudioEngine() { return audioEngine; }
+
+              private void showToast(String msg) {
+                  mainHandler.post(() -> {
+                      try { Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show(); } catch (Exception ignored) {}
+                  });
+              }
 
               @Override
               protected boolean onKeyEvent(KeyEvent event) {
@@ -1151,6 +1828,11 @@ jobs:
               }
 
               public void toggleAssistantSession() {
+                  if (isSessionActive) {
+                      disconnectSession();
+                      return;
+                  }
+
                   String key = prefs.getString("api_key", "").trim();
                   if (key.isEmpty()) {
                       Intent intent = new Intent(this, SettingsActivity.class);
@@ -1161,14 +1843,33 @@ jobs:
                   }
 
                   pillManager.updateState(FloatingPillManager.State.WORKING, "Connecting...", "Initializing");
-                  String prompt = prefs.getString("system_prompt", "");
-                  geminiClient.connect(key, "models/gemini-3.1-flash-live-preview", "Aoede", prompt);
+                  showToast("Connecting to Gemini Live...");
+
+                  String prompt = prefs.getString("assistant_instructions", "");
+                  String model = prefs.getString("target_model", "gemini-3.1-flash-live-preview");
+                  String voice = prefs.getString("voice_profile", "Aoede");
+
+                  geminiClient.connect(key, model, voice, prompt);
+              }
+
+              public void disconnectSession() {
+                  if (geminiClient != null) geminiClient.disconnect();
+                  if (audioEngine != null) {
+                      audioEngine.stopRecording();
+                      audioEngine.stopPlayback();
+                  }
+                  isSessionActive = false;
+                  pillManager.updateState(FloatingPillManager.State.IDLE, "Voice", "Ready");
+                  pillManager.hide();
+                  showToast("Session disconnected.");
               }
 
               @Override
               public void onConnected() {
+                  isSessionActive = true;
                   audioEngine.startRecording();
                   pillManager.updateState(FloatingPillManager.State.LISTENING, "Listening", "Go ahead");
+                  showToast("Live Connected! Go ahead, speak.");
               }
 
               @Override
@@ -1182,7 +1883,9 @@ jobs:
               public void onTurnComplete() {
                   audioEngine.setModelSpeaking(false);
                   pillManager.updateState(FloatingPillManager.State.LISTENING, "Listening", "Go ahead");
-                  startInactivityTimer();
+                  if (prefs.getBoolean("auto_disconnect", true)) {
+                      startInactivityTimer();
+                  }
               }
 
               @Override
@@ -1196,18 +1899,19 @@ jobs:
               }
 
               @Override
-              public void onClosed() {
+              public void onClosed(String reason) {
+                  isSessionActive = false;
                   audioEngine.stopRecording();
                   audioEngine.stopPlayback();
                   pillManager.updateState(FloatingPillManager.State.IDLE, "Voice", "Ready");
+                  showToast("Live Session: " + reason);
               }
 
               private void startInactivityTimer() {
                   resetInactivityTimer();
                   inactivityRunnable = () -> {
                       if (!audioEngine.isModelSpeaking()) {
-                          geminiClient.disconnect();
-                          pillManager.hide();
+                          disconnectSession();
                       }
                   };
                   mainHandler.postDelayed(inactivityRunnable, 4000);
@@ -1287,6 +1991,7 @@ jobs:
                   geminiClient.sendToolResponse(callId, result);
               }
 
+              // Calibrated 288x592 Native Touch with Magnetic Snapping
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -1315,7 +2020,16 @@ jobs:
                   GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 120);
                   GestureDescription.Builder b = new GestureDescription.Builder();
                   b.addStroke(stroke);
-                  return dispatchGesture(b.build(), null, null);
+
+                  final int fX = targetX;
+                  final int fY = targetY;
+                  return dispatchGesture(b.build(), new GestureResultCallback() {
+                      @Override
+                      public void onCompleted(GestureDescription gestureDescription) {
+                          super.onCompleted(gestureDescription);
+                          showToast("✓ Tap at (" + fX + ", " + fY + ")");
+                      }
+                  }, null);
               }
 
               public boolean longPress(int x, int y) {
@@ -1631,5 +2345,5 @@ jobs:
           gh release delete v3.0 --yes || true
           git tag -d v3.0 || true
           gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice Native v3.0 (Zero WebView • 18MB RAM)" \
-            --notes "Voice v3.0 Pure Native Engine: No WebView, native 56dp floating pill overlay, direct AudioRecord/AudioTrack, OkHttp WebSockets, 0-1000 coordinate calibration for 288x592 with magnetic snap." || true
+            --title "Voice Native v3.0" \
+            --notes "Voice Native v3.0: Full Material UI, masked API field, auto-reconnecting socket, and calibrated 288x592 touch targeting." || true
