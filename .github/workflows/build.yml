@@ -1123,6 +1123,7 @@ jobs:
           EOF
 
           # AudioEngine.java: Direct Hardware 16kHz & 24kHz
+          # AudioEngine.java: Dedicated Audio Queue for Lag-Free Playback
           cat << 'EOF' > app/src/main/java/com/gemini/live/AudioEngine.java
           package com.gemini.live;
 
@@ -1132,6 +1133,8 @@ jobs:
           import android.media.AudioTrack;
           import android.media.MediaRecorder;
           import android.util.Base64;
+          import java.util.concurrent.LinkedBlockingQueue;
+          import java.util.concurrent.TimeUnit;
 
           public class AudioEngine {
               public interface AudioChunkListener {
@@ -1142,7 +1145,10 @@ jobs:
               private AudioRecord audioRecord;
               private AudioTrack audioTrack;
               private Thread recordThread;
+              private Thread playThread;
+              private LinkedBlockingQueue<byte[]> playQueue = new LinkedBlockingQueue<>();
               private boolean isRecording = false;
+              private boolean isPlaying = false;
               private boolean isMuted = false;
               private boolean isModelSpeaking = false;
               private AudioChunkListener listener;
@@ -1150,6 +1156,7 @@ jobs:
               public AudioEngine(AudioChunkListener listener) {
                   this.listener = listener;
                   initAudioTrack();
+                  startPlayThread();
               }
 
               private void initAudioTrack() {
@@ -1160,6 +1167,23 @@ jobs:
                   audioTrack.play();
               }
 
+              private void startPlayThread() {
+                  isPlaying = true;
+                  playThread = new Thread(() -> {
+                      while (isPlaying) {
+                          try {
+                              byte[] chunk = playQueue.poll(50, TimeUnit.MILLISECONDS);
+                              if (chunk != null && audioTrack != null) {
+                                  isModelSpeaking = true;
+                                  audioTrack.write(chunk, 0, chunk.length);
+                              }
+                          } catch (Exception ignored) {}
+                      }
+                  });
+                  playThread.setPriority(Thread.MAX_PRIORITY);
+                  playThread.start();
+              }
+
               public void startRecording() {
                   if (isRecording) return;
                   int minBuf = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
@@ -1167,6 +1191,8 @@ jobs:
                       audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, 16000, 
                           AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, 
                           Math.max(minBuf, 2048));
+                      
+                      if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) return;
                       audioRecord.startRecording();
                       isRecording = true;
 
@@ -1207,13 +1233,13 @@ jobs:
               }
 
               public void playPcmChunk(byte[] pcmBytes) {
-                  if (audioTrack != null && pcmBytes != null && pcmBytes.length > 0) {
-                      isModelSpeaking = true;
-                      audioTrack.write(pcmBytes, 0, pcmBytes.length);
+                  if (pcmBytes != null && pcmBytes.length > 0) {
+                      playQueue.offer(pcmBytes);
                   }
               }
 
               public void stopPlayback() {
+                  playQueue.clear();
                   if (audioTrack != null) {
                       try {
                           audioTrack.pause();
@@ -1231,6 +1257,12 @@ jobs:
 
               public void release() {
                   stopRecording();
+                  isPlaying = false;
+                  if (playThread != null) {
+                      playThread.interrupt();
+                      playThread = null;
+                  }
+                  stopPlayback();
                   if (audioTrack != null) {
                       try { audioTrack.stop(); audioTrack.release(); } catch (Exception ignored) {}
                       audioTrack = null;
@@ -1240,6 +1272,7 @@ jobs:
           EOF
 
           # GeminiLiveClient.java: Zero Ping-Timeout & Gated on setupComplete
+          # GeminiLiveClient.java: Instant Connect (No Handshake Deadlock)
           cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
           package com.gemini.live;
 
@@ -1253,6 +1286,8 @@ jobs:
           import okhttp3.WebSocketListener;
           import org.json.JSONArray;
           import org.json.JSONObject;
+          import java.net.URLEncoder;
+          import java.util.concurrent.TimeUnit;
 
           public class GeminiLiveClient {
               public interface LiveCallback {
@@ -1267,42 +1302,56 @@ jobs:
               private OkHttpClient client;
               private LiveCallback callback;
               private Handler mainHandler = new Handler(Looper.getMainLooper());
-              private boolean isSetupComplete = false;
 
               public GeminiLiveClient(LiveCallback callback) {
                   this.callback = callback;
-                  // Explicitly NO pingInterval: Google's Live API backend drops sockets if client sends WS pings
                   this.client = new OkHttpClient.Builder()
+                      .readTimeout(0, TimeUnit.MILLISECONDS)
+                      .writeTimeout(0, TimeUnit.MILLISECONDS)
+                      .connectTimeout(15, TimeUnit.SECONDS)
                       .retryOnConnectionFailure(true)
                       .build();
               }
 
               public void connect(String apiKey, String model, String voice, String prompt) {
-                  isSetupComplete = false;
-                  String url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + apiKey.trim();
-                  Request request = new Request.Builder().url(url).build();
+                  try {
+                      String encodedKey = URLEncoder.encode(apiKey.trim(), "UTF-8");
+                      String url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + encodedKey;
+                      Request request = new Request.Builder().url(url).build();
 
-                  webSocket = client.newWebSocket(request, new WebSocketListener() {
-                      @Override
-                      public void onOpen(WebSocket ws, Response response) {
-                          sendSetup(ws, model, voice, prompt);
-                      }
+                      webSocket = client.newWebSocket(request, new WebSocketListener() {
+                          @Override
+                          public void onOpen(WebSocket ws, Response response) {
+                              sendSetup(ws, model, voice, prompt);
+                              // Transition to listening immediately on socket open (matches working index.html)
+                              mainHandler.post(() -> {
+                                  if (callback != null) callback.onConnected();
+                              });
+                          }
 
-                      @Override
-                      public void onMessage(WebSocket ws, String text) {
-                          handleIncomingJson(text);
-                      }
+                          @Override
+                          public void onMessage(WebSocket ws, String text) {
+                              handleIncomingJson(text);
+                          }
 
-                      @Override
-                      public void onClosed(WebSocket ws, int code, String reason) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Closed (" + code + "): " + reason); });
-                      }
+                          @Override
+                          public void onClosed(WebSocket ws, int code, String reason) {
+                              mainHandler.post(() -> {
+                                  if (callback != null) callback.onClosed("Closed (" + code + "): " + reason);
+                              });
+                          }
 
-                      @Override
-                      public void onFailure(WebSocket ws, Throwable t, Response response) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Error: " + t.getMessage()); });
-                      }
-                  });
+                          @Override
+                          public void onFailure(WebSocket ws, Throwable t, Response response) {
+                              String err = (t != null && t.getMessage() != null) ? t.getMessage() : "Connection failed";
+                              mainHandler.post(() -> {
+                                  if (callback != null) callback.onClosed("Error: " + err);
+                              });
+                          }
+                      });
+                  } catch (Exception e) {
+                      if (callback != null) callback.onClosed("URL Error: " + e.getMessage());
+                  }
               }
 
               private void sendSetup(WebSocket ws, String model, String voice, String prompt) {
@@ -1319,7 +1368,7 @@ jobs:
                       JSONObject speechConfig = new JSONObject();
                       JSONObject voiceConfig = new JSONObject();
                       JSONObject prebuilt = new JSONObject();
-                      prebuilt.put("voiceName", voice);
+                      prebuilt.put("voiceName", (voice == null || voice.trim().isEmpty()) ? "Aoede" : voice.trim());
                       voiceConfig.put("prebuiltVoiceConfig", prebuilt);
                       speechConfig.put("voiceConfig", voiceConfig);
                       genConfig.put("speechConfig", speechConfig);
@@ -1335,7 +1384,11 @@ jobs:
 
                       setup.put("tools", getDeviceToolDeclarations());
                       ws.send(new JSONObject().put("setup", setup).toString());
-                  } catch (Exception ignored) {}
+                  } catch (Exception e) {
+                      mainHandler.post(() -> {
+                          if (callback != null) callback.onClosed("Setup JSON Error: " + e.getMessage());
+                      });
+                  }
               }
 
               private JSONArray getDeviceToolDeclarations() throws Exception {
@@ -1411,9 +1464,8 @@ jobs:
                   return decl;
               }
 
-              // Do not send audio until setupComplete is received!
               public void sendAudioChunk(String base64Pcm) {
-                  if (webSocket == null || !isSetupComplete) return;
+                  if (webSocket == null) return;
                   try {
                       JSONObject real = new JSONObject();
                       JSONArray mediaChunks = new JSONArray();
@@ -1427,7 +1479,7 @@ jobs:
               }
 
               public void sendImageFrame(String base64Jpeg) {
-                  if (webSocket == null || !isSetupComplete) return;
+                  if (webSocket == null) return;
                   try {
                       JSONObject real = new JSONObject();
                       JSONArray mediaChunks = new JSONArray();
@@ -1458,11 +1510,11 @@ jobs:
                   try {
                       JSONObject res = new JSONObject(jsonStr);
 
-                      // Gate audio: setupComplete confirms Google accepts session
-                      if (res.has("setupComplete")) {
-                          isSetupComplete = true;
+                      if (res.has("error")) {
+                          JSONObject err = res.getJSONObject("error");
+                          String errMsg = err.optString("message", "API Error");
                           mainHandler.post(() -> {
-                              if (callback != null) callback.onConnected();
+                              if (callback != null) callback.onClosed("Error: " + errMsg);
                           });
                           return;
                       }
@@ -1520,7 +1572,6 @@ jobs:
               }
 
               public void disconnect() {
-                  isSetupComplete = false;
                   if (webSocket != null) {
                       webSocket.close(1000, "Clean close");
                       webSocket = null;
@@ -1707,609 +1758,6 @@ jobs:
 
           # VolumeTriggerService.java: 100% Calibrated Native Controller
           cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
-          package com.gemini.live;
-
-          import android.accessibilityservice.AccessibilityService;
-          import android.accessibilityservice.GestureDescription;
-          import android.content.ClipData;
-          import android.content.ClipboardManager;
-          import android.content.Context;
-          import android.content.Intent;
-          import android.content.SharedPreferences;
-          import android.content.pm.ApplicationInfo;
-          import android.content.pm.PackageManager;
-          import android.graphics.Path;
-          import android.graphics.Rect;
-          import android.hardware.camera2.CameraManager;
-          import android.media.AudioManager;
-          import android.net.Uri;
-          import android.os.Build;
-          import android.os.Bundle;
-          import android.os.Handler;
-          import android.os.Looper;
-          import android.os.SystemClock;
-          import android.os.VibrationEffect;
-          import android.os.Vibrator;
-          import android.telephony.SmsManager;
-          import android.util.DisplayMetrics;
-          import android.view.KeyEvent;
-          import android.view.WindowManager;
-          import android.view.accessibility.AccessibilityEvent;
-          import android.view.accessibility.AccessibilityNodeInfo;
-          import android.widget.Toast;
-          import org.json.JSONObject;
-          import java.util.ArrayList;
-          import java.util.List;
-
-          public class VolumeTriggerService extends AccessibilityService implements AudioEngine.AudioChunkListener, GeminiLiveClient.LiveCallback {
-              public static VolumeTriggerService instance = null;
-              private long lastVolumeDownTime = 0;
-              private static final long DOUBLE_PRESS_INTERVAL = 450;
-
-              private FloatingPillManager pillManager;
-              private AudioEngine audioEngine;
-              private GeminiLiveClient geminiClient;
-              private SharedPreferences prefs;
-              private Handler mainHandler = new Handler(Looper.getMainLooper());
-              private Runnable inactivityRunnable;
-              private boolean isSessionActive = false;
-
-              @Override
-              public void onServiceConnected() {
-                  super.onServiceConnected();
-                  instance = this;
-                  prefs = getSharedPreferences("voice_prefs", MODE_PRIVATE);
-                  pillManager = new FloatingPillManager(this);
-                  audioEngine = new AudioEngine(this);
-                  geminiClient = new GeminiLiveClient(this);
-              }
-
-              @Override
-              public void onDestroy() {
-                  if (geminiClient != null) geminiClient.disconnect();
-                  if (audioEngine != null) audioEngine.release();
-                  if (pillManager != null) pillManager.hide();
-                  instance = null;
-                  super.onDestroy();
-              }
-
-              public AudioEngine getAudioEngine() { return audioEngine; }
-
-              private void showToast(String msg) {
-                  mainHandler.post(() -> {
-                      try { Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show(); } catch (Exception ignored) {}
-                  });
-              }
-
-              @Override
-              protected boolean onKeyEvent(KeyEvent event) {
-                  if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN && event.getAction() == KeyEvent.ACTION_DOWN) {
-                      long now = SystemClock.uptimeMillis();
-                      if (now - lastVolumeDownTime < DOUBLE_PRESS_INTERVAL) {
-                          lastVolumeDownTime = 0;
-                          onDoubleVolumeDown();
-                          return true;
-                      } else {
-                          lastVolumeDownTime = now;
-                      }
-                  }
-                  return super.onKeyEvent(event);
-              }
-
-              private void onDoubleVolumeDown() {
-                  try {
-                      Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-                      if (v != null) {
-                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                              v.vibrate(VibrationEffect.createWaveform(new long[]{0, 50, 70, 50}, -1));
-                          } else {
-                              v.vibrate(new long[]{0, 50, 70, 50}, -1);
-                          }
-                      }
-                  } catch (Exception ignored) {}
-
-                  pillManager.show();
-                  toggleAssistantSession();
-              }
-
-              public void toggleAssistantSession() {
-                  if (isSessionActive) {
-                      disconnectSession();
-                      return;
-                  }
-
-                  String key = prefs.getString("api_key", "").trim();
-                  if (key.isEmpty()) {
-                      Intent intent = new Intent(this, SettingsActivity.class);
-                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(intent);
-                      Toast.makeText(this, "Please enter Gemini API key first", Toast.LENGTH_LONG).show();
-                      return;
-                  }
-
-                  pillManager.updateState(FloatingPillManager.State.WORKING, "Connecting...", "Initializing");
-                  showToast("Connecting to Gemini Live...");
-
-                  String prompt = prefs.getString("assistant_instructions", "");
-                  String model = prefs.getString("target_model", "models/gemini-2.0-flash-exp");
-                  String voice = prefs.getString("voice_profile", "Aoede");
-
-                  geminiClient.connect(key, model, voice, prompt);
-              }
-
-              public void disconnectSession() {
-                  if (geminiClient != null) geminiClient.disconnect();
-                  if (audioEngine != null) {
-                      audioEngine.stopRecording();
-                      audioEngine.stopPlayback();
-                  }
-                  isSessionActive = false;
-                  pillManager.updateState(FloatingPillManager.State.IDLE, "Voice", "Ready");
-                  pillManager.hide();
-                  showToast("Session disconnected.");
-              }
-
-              @Override
-              public void onConnected() {
-                  isSessionActive = true;
-                  audioEngine.startRecording();
-                  pillManager.updateState(FloatingPillManager.State.LISTENING, "Listening", "Go ahead");
-                  showToast("✓ Connected & Live! Speak now.");
-              }
-
-              @Override
-              public void onModelSpeaking() {
-                  resetInactivityTimer();
-                  audioEngine.setModelSpeaking(true);
-                  pillManager.updateState(FloatingPillManager.State.SPEAKING, "Speaking", "Jarvis...");
-              }
-
-              @Override
-              public void onTurnComplete() {
-                  audioEngine.setModelSpeaking(false);
-                  pillManager.updateState(FloatingPillManager.State.LISTENING, "Listening", "Go ahead");
-                  if (prefs.getBoolean("auto_disconnect", true)) {
-                      startInactivityTimer();
-                  }
-              }
-
-              @Override
-              public void onAudioChunk(String base64Pcm) {
-                  if (geminiClient != null) geminiClient.sendAudioChunk(base64Pcm);
-              }
-
-              @Override
-              public void onUserSpeakingDetected() {
-                  resetInactivityTimer();
-              }
-
-              @Override
-              public void onClosed(String reason) {
-                  isSessionActive = false;
-                  audioEngine.stopRecording();
-                  audioEngine.stopPlayback();
-                  pillManager.updateState(FloatingPillManager.State.IDLE, "Voice", "Ready");
-                  showToast(reason);
-              }
-
-              private void startInactivityTimer() {
-                  resetInactivityTimer();
-                  inactivityRunnable = () -> {
-                      if (!audioEngine.isModelSpeaking()) {
-                          disconnectSession();
-                      }
-                  };
-                  mainHandler.postDelayed(inactivityRunnable, 4000);
-              }
-
-              private void resetInactivityTimer() {
-                  if (inactivityRunnable != null) {
-                      mainHandler.removeCallbacks(inactivityRunnable);
-                      inactivityRunnable = null;
-                  }
-              }
-
-              @Override
-              public void onToolCall(String name, JSONObject args, String callId) {
-                  resetInactivityTimer();
-                  pillManager.updateState(FloatingPillManager.State.WORKING, "Working", name);
-
-                  String result = "Action complete";
-                  try {
-                      switch (name) {
-                          case "create_note":
-                              result = createNote(args.optString("text"));
-                              break;
-                          case "type_text":
-                              result = typeText(args.optString("text"));
-                              break;
-                          case "tap_coordinates":
-                              result = tapCoordinates(args.optInt("x"), args.optInt("y")) ? "Tapped" : "Failed";
-                              break;
-                          case "long_press":
-                              result = longPress(args.optInt("x"), args.optInt("y")) ? "Long pressed" : "Failed";
-                              break;
-                          case "tap_element":
-                              result = tapElement(args.optString("label")) ? "Tapped" : "Element not found";
-                              break;
-                          case "scroll":
-                              result = scroll(args.optString("direction")) ? "Scrolled" : "Failed";
-                              break;
-                          case "read_screen_text":
-                              result = readScreenText();
-                              break;
-                          case "capture_screen":
-                              if (ScreenCaptureService.instance != null) {
-                                  String b64 = ScreenCaptureService.instance.captureScreenBase64();
-                                  if (b64 != null) {
-                                      geminiClient.sendImageFrame(b64);
-                                      result = "Screenshot sent to visual feed.";
-                                  } else result = "Failed to capture frame.";
-                              } else result = "Screen capture not active.";
-                              break;
-                          case "open_application":
-                              result = openApp(args.optString("app_name"));
-                              break;
-                          case "search_contacts":
-                              result = searchContacts(args.optString("query"));
-                              break;
-                          case "search_youtube":
-                              result = searchYouTube(args.optString("query"));
-                              break;
-                          case "search_web":
-                              result = searchWeb(args.optString("query"));
-                              break;
-                          case "open_whatsapp":
-                              result = openWhatsApp(args.optString("phone_number"), args.optString("message"));
-                              break;
-                          case "make_phone_call":
-                              result = makePhoneCall(args.optString("phone_number"));
-                              break;
-                          case "toggle_flashlight":
-                              result = toggleFlashlight(args.optBoolean("state"));
-                              break;
-                      }
-                  } catch (Exception e) {
-                      result = "Error: " + e.getMessage();
-                  }
-
-                  geminiClient.sendToolResponse(callId, result);
-              }
-
-              // Calibrated 288x592 Native Touch with Magnetic Snapping
-              public boolean tapCoordinates(int x, int y) {
-                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
-                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                  DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                  else dm = getResources().getDisplayMetrics();
-
-                  int targetX = (x <= 1000 && y <= 1000) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
-                  int targetY = (x <= 1000 && y <= 1000) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
-
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root != null) {
-                      Rect snapped = findNearbyElement(root, targetX, targetY, 35);
-                      if (snapped != null) {
-                          targetX = snapped.centerX();
-                          targetY = snapped.centerY();
-                      }
-                  }
-
-                  targetX = Math.max(5, Math.min(targetX, dm.widthPixels - 5));
-                  targetY = Math.max(5, Math.min(targetY, dm.heightPixels - 5));
-
-                  Path p = new Path();
-                  p.moveTo(targetX, targetY);
-                  p.lineTo(targetX, targetY + 2);
-                  GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 120);
-                  GestureDescription.Builder b = new GestureDescription.Builder();
-                  b.addStroke(stroke);
-
-                  final int fX = targetX;
-                  final int fY = targetY;
-                  return dispatchGesture(b.build(), new GestureResultCallback() {
-                      @Override
-                      public void onCompleted(GestureDescription gestureDescription) {
-                          super.onCompleted(gestureDescription);
-                          showToast("✓ Tap at (" + fX + ", " + fY + ")");
-                      }
-                  }, null);
-              }
-
-              public boolean longPress(int x, int y) {
-                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
-                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                  DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                  else dm = getResources().getDisplayMetrics();
-
-                  int targetX = (x <= 1000 && y <= 1000) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
-                  int targetY = (x <= 1000 && y <= 1000) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
-
-                  targetX = Math.max(5, Math.min(targetX, dm.widthPixels - 5));
-                  targetY = Math.max(5, Math.min(targetY, dm.heightPixels - 5));
-
-                  Path p = new Path();
-                  p.moveTo(targetX, targetY);
-                  p.lineTo(targetX, targetY + 2);
-                  GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 700);
-                  GestureDescription.Builder b = new GestureDescription.Builder();
-                  b.addStroke(stroke);
-                  return dispatchGesture(b.build(), null, null);
-              }
-
-              private Rect findNearbyElement(AccessibilityNodeInfo node, int x, int y, int radius) {
-                  if (node == null) return null;
-                  if (node.isClickable()) {
-                      Rect r = new Rect();
-                      node.getBoundsInScreen(r);
-                      if (r.contains(x, y)) return r;
-                      int dx = x - r.centerX(), dy = y - r.centerY();
-                      if (Math.sqrt(dx * dx + dy * dy) <= radius) return r;
-                  }
-                  for (int i = 0; i < node.getChildCount(); i++) {
-                      Rect res = findNearbyElement(node.getChild(i), x, y, radius);
-                      if (res != null) return res;
-                  }
-                  return null;
-              }
-
-              public boolean tapElement(String label) {
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root == null) return false;
-                  String target = label.toLowerCase().trim();
-                  List<AccessibilityNodeInfo> matches = new ArrayList<>();
-                  collectMatches(root, target, matches, 0);
-                  if (matches.isEmpty()) return false;
-
-                  AccessibilityNodeInfo best = null;
-                  int minArea = Integer.MAX_VALUE;
-                  Rect r = new Rect();
-                  for (AccessibilityNodeInfo n : matches) {
-                      n.getBoundsInScreen(r);
-                      int area = r.width() * r.height();
-                      if (area > 0 && area < minArea) {
-                          minArea = area;
-                          best = n;
-                      }
-                  }
-                  if (best != null) {
-                      best.getBoundsInScreen(r);
-                      return tapCoordinates(r.centerX(), r.centerY());
-                  }
-                  return false;
-              }
-
-              private void collectMatches(AccessibilityNodeInfo node, String target, List<AccessibilityNodeInfo> list, int depth) {
-                  if (node == null || depth > 25) return;
-                  CharSequence text = node.getText();
-                  CharSequence desc = node.getContentDescription();
-                  boolean match = (text != null && text.toString().toLowerCase().contains(target)) ||
-                                  (desc != null && desc.toString().toLowerCase().contains(target));
-                  if (match) list.add(node);
-                  for (int i = 0; i < node.getChildCount(); i++) collectMatches(node.getChild(i), target, list, depth + 1);
-              }
-
-              public boolean scroll(String direction) {
-                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                  DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                  else dm = getResources().getDisplayMetrics();
-
-                  int midX = dm.widthPixels / 2;
-                  int h = dm.heightPixels;
-                  Path p = new Path();
-                  if ("up".equalsIgnoreCase(direction)) {
-                      p.moveTo(midX, (int)(h * 0.3)); p.lineTo(midX, (int)(h * 0.8));
-                  } else {
-                      p.moveTo(midX, (int)(h * 0.8)); p.lineTo(midX, (int)(h * 0.3));
-                  }
-                  GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 300);
-                  GestureDescription.Builder b = new GestureDescription.Builder();
-                  b.addStroke(stroke);
-                  return dispatchGesture(b.build(), null, null);
-              }
-
-              public String readScreenText() {
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root == null) return "No active window.";
-
-                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                  DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                  else dm = getResources().getDisplayMetrics();
-
-                  StringBuilder sb = new StringBuilder();
-                  sb.append("=== INTERACTIVE ELEMENTS (0-1000) ===\n");
-                  List<String> elements = new ArrayList<>();
-                  extractInteractive(root, elements, dm, 0);
-                  for (String e : elements) sb.append(e).append("\n");
-
-                  sb.append("\n=== SCREEN TEXT ===\n");
-                  extractText(root, sb, 0);
-                  return sb.toString().trim();
-              }
-
-              private void extractInteractive(AccessibilityNodeInfo node, List<String> list, DisplayMetrics dm, int depth) {
-                  if (node == null || depth > 25 || list.size() >= 25) return;
-                  if (node.isClickable() || node.isEditable()) {
-                      CharSequence text = node.getText();
-                      CharSequence desc = node.getContentDescription();
-                      String label = text != null ? text.toString().trim() : (desc != null ? desc.toString().trim() : "");
-                      if (!label.isEmpty()) {
-                          Rect r = new Rect();
-                          node.getBoundsInScreen(r);
-                          if (r.width() > 5 && r.height() > 5) {
-                              int normX = Math.round((r.centerX() / (float) dm.widthPixels) * 1000);
-                              int normY = Math.round((r.centerY() / (float) dm.heightPixels) * 1000);
-                              list.add("[" + (node.isEditable() ? "Input" : "Button") + "] \"" + label + "\" at (" + normX + ", " + normY + ")");
-                          }
-                      }
-                  }
-                  for (int i = 0; i < node.getChildCount(); i++) extractInteractive(node.getChild(i), list, dm, depth + 1);
-              }
-
-              private void extractText(AccessibilityNodeInfo node, StringBuilder sb, int depth) {
-                  if (node == null || depth > 25) return;
-                  CharSequence text = node.getText();
-                  if (text != null && text.length() > 0) sb.append(text).append("\n");
-                  else {
-                      CharSequence desc = node.getContentDescription();
-                      if (desc != null && desc.length() > 0) sb.append(desc).append("\n");
-                  }
-                  for (int i = 0; i < node.getChildCount(); i++) extractText(node.getChild(i), sb, depth + 1);
-              }
-
-              public String typeText(String text) {
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root == null) return "No active window.";
-
-                  AccessibilityNodeInfo target = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-                  if (target == null) target = findFirstEditable(root, 0);
-
-                  if (target != null) {
-                      ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                      if (cm != null) {
-                          cm.setPrimaryClip(ClipData.newPlainText("text", text));
-                      }
-                      boolean ok = target.performAction(AccessibilityNodeInfo.ACTION_PASTE);
-                      if (!ok) {
-                          Bundle b = new Bundle();
-                          b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
-                          ok = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b);
-                      }
-                      return ok ? "Typed text." : "Could not paste.";
-                  }
-                  return "No editable field found.";
-              }
-
-              private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node, int depth) {
-                  if (node == null || depth > 25) return null;
-                  if (node.isEditable()) return node;
-                  for (int i = 0; i < node.getChildCount(); i++) {
-                      AccessibilityNodeInfo res = findFirstEditable(node.getChild(i), depth + 1);
-                      if (res != null) return res;
-                  }
-                  return null;
-              }
-
-              public String createNote(String text) {
-                  try {
-                      Intent intent = new Intent(Intent.ACTION_SEND);
-                      intent.setType("text/plain");
-                      intent.putExtra(Intent.EXTRA_TEXT, text);
-                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(Intent.createChooser(intent, "Note"));
-                      return "Note composer opened with text.";
-                  } catch (Exception e) { return "Note error: " + e.getMessage(); }
-              }
-
-              public String searchYouTube(String query) {
-                  try {
-                      Intent intent = new Intent(Intent.ACTION_SEARCH);
-                      intent.setPackage("com.google.android.youtube");
-                      intent.putExtra("query", query);
-                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(intent);
-                      return "Searching YouTube.";
-                  } catch (Exception e) {
-                      Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
-                      web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(web);
-                      return "Opened YouTube in browser.";
-                  }
-              }
-
-              public String searchWeb(String query) {
-                  try {
-                      Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
-                      intent.putExtra("query", query);
-                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(intent);
-                      return "Searching Google.";
-                  } catch (Exception e) { return "Search failed."; }
-              }
-
-              public String openWhatsApp(String phone, String msg) {
-                  try {
-                      String clean = phone.replaceAll("[^0-9+]", "");
-                      if (clean.startsWith("+")) clean = clean.substring(1);
-                      String url = "https://api.whatsapp.com/send?phone=" + clean + "&text=" + Uri.encode(msg);
-                      Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                      intent.setPackage("com.whatsapp");
-                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(intent);
-                      return "Opened WhatsApp chat.";
-                  } catch (Exception e) { return "WhatsApp error: " + e.getMessage(); }
-              }
-
-              public String openApp(String appName) {
-                  PackageManager pm = getPackageManager();
-                  List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-                  for (ApplicationInfo a : apps) {
-                      String label = pm.getApplicationLabel(a).toString().toLowerCase();
-                      if (label.contains(appName.toLowerCase().trim())) {
-                          Intent launch = pm.getLaunchIntentForPackage(a.packageName);
-                          if (launch != null) {
-                              launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(launch);
-                              return "Opened " + label;
-                          }
-                      }
-                  }
-                  return "App not found.";
-              }
-
-              public String makePhoneCall(String num) {
-                  try {
-                      Intent call = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + num.trim()));
-                      call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      startActivity(call);
-                      return "Calling " + num;
-                  } catch (Exception e) { return "Call failed: " + e.getMessage(); }
-              }
-
-              public String searchContacts(String q) {
-                  try {
-                      android.content.ContentResolver cr = getContentResolver();
-                      Uri uri = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
-                      String sel = android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
-                      android.database.Cursor cur = cr.query(uri, new String[]{
-                          android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                          android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
-                      }, sel, new String[]{"%" + q.trim() + "%"}, null);
-                      if (cur != null) {
-                          StringBuilder res = new StringBuilder();
-                          while (cur.moveToNext()) {
-                              res.append(cur.getString(0)).append(": ").append(cur.getString(1)).append("\n");
-                              if (res.length() > 200) break;
-                          }
-                          cur.close();
-                          return res.length() > 0 ? res.toString() : "No contact found.";
-                      }
-                  } catch (Exception e) { return "Contact search failed."; }
-                  return "No contacts.";
-              }
-
-              public String toggleFlashlight(boolean state) {
-                  try {
-                      CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-                      if (cm != null) {
-                          cm.setTorchMode(cm.getCameraIdList()[0], state);
-                          return "Flashlight " + (state ? "ON" : "OFF");
-                      }
-                  } catch (Exception ignored) {}
-                  return "Flashlight failed.";
-              }
-
-              @Override
-              public void onAccessibilityEvent(AccessibilityEvent event) {}
-
-              @Override
-              public void onInterrupt() {}
-          }
-          EOF
 
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.5
