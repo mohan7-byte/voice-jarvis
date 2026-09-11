@@ -172,7 +172,6 @@ jobs:
           </shape>
           EOF
 
-          # Universal SwitchCompat avoids Material 3 theme clash
           cat << 'EOF' > app/src/main/res/layout/activity_settings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.core.widget.NestedScrollView
@@ -195,7 +194,6 @@ jobs:
                   android:paddingStart="15dp"
                   android:paddingEnd="15dp">
 
-                  <!-- Double-click volume setup -->
                   <com.google.android.material.card.MaterialCardView
                       android:id="@+id/volumeSetupCard"
                       android:layout_width="match_parent"
@@ -265,7 +263,6 @@ jobs:
                       </LinearLayout>
                   </com.google.android.material.card.MaterialCardView>
 
-                  <!-- Playbooks & Memory Section -->
                   <TextView
                       android:id="@+id/playbooksLabel"
                       style="@style/SettingsSectionLabel"
@@ -352,7 +349,6 @@ jobs:
                       </LinearLayout>
                   </com.google.android.material.card.MaterialCardView>
 
-                  <!-- Gemini API Key -->
                   <TextView
                       android:id="@+id/apiKeyLabel"
                       style="@style/SettingsSectionLabel"
@@ -376,7 +372,6 @@ jobs:
                       android:importantForAutofill="no"
                       android:imeOptions="actionDone" />
 
-                  <!-- Auto Disconnect -->
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
@@ -413,7 +408,6 @@ jobs:
                           android:padding="0dp" />
                   </LinearLayout>
 
-                  <!-- Auto Connect -->
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
@@ -450,7 +444,6 @@ jobs:
                           android:padding="0dp" />
                   </LinearLayout>
 
-                  <!-- Speaker Echo Guard -->
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
@@ -487,7 +480,6 @@ jobs:
                           android:padding="0dp" />
                   </LinearLayout>
 
-                  <!-- Bluetooth Priority -->
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
@@ -525,7 +517,6 @@ jobs:
                           android:padding="0dp" />
                   </LinearLayout>
 
-                  <!-- Assistant Instructions -->
                   <TextView
                       android:id="@+id/instructionsLabel"
                       style="@style/SettingsSectionLabel"
@@ -550,7 +541,6 @@ jobs:
                       android:text="You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control and experiential memory."
                       android:textSize="11sp" />
 
-                  <!-- Target model -->
                   <TextView
                       style="@style/SettingsSectionLabel"
                       android:layout_width="match_parent"
@@ -568,7 +558,6 @@ jobs:
                       android:paddingEnd="10dp"
                       android:spinnerMode="dropdown" />
 
-                  <!-- Voice profile -->
                   <TextView
                       style="@style/SettingsSectionLabel"
                       android:layout_width="match_parent"
@@ -586,7 +575,6 @@ jobs:
                       android:paddingEnd="10dp"
                       android:spinnerMode="dropdown" />
 
-                  <!-- Bottom save -->
                   <com.google.android.material.button.MaterialButton
                       android:id="@+id/saveButton"
                       android:layout_width="match_parent"
@@ -645,7 +633,7 @@ jobs:
                   applicationId "com.gemini.live.native"
                   minSdk 24
                   targetSdk 34
-                  versionCode 18
+                  versionCode 19
                   versionName "3.0"
               }
               buildTypes {
@@ -716,7 +704,7 @@ jobs:
           </manifest>
           EOF
 
-          # Crash-Proof SettingsActivity.java
+          # SettingsActivity.java
           cat << 'EOF' > app/src/main/java/com/gemini/live/SettingsActivity.java
           package com.gemini.live;
 
@@ -770,9 +758,9 @@ jobs:
               private SharedPreferences preferences;
 
               private final String[] modelOptions = {
-                      "gemini-3.1-flash-live-preview",
-                      "gemini-2.5-flash-native-audio-preview",
-                      "gemini-2.0-flash-exp"
+                      "models/gemini-2.0-flash-exp",
+                      "models/gemini-2.5-flash-native-audio-preview-12-2025",
+                      "models/gemini-3.1-flash-live-preview"
               };
 
               private final String[] voiceOptions = {
@@ -892,7 +880,7 @@ jobs:
                   speakerEchoGuardSwitch.setChecked(preferences.getBoolean(KEY_ECHO_GUARD, true));
                   bluetoothPrioritySwitch.setChecked(preferences.getBoolean(KEY_BLUETOOTH_PRIORITY, true));
 
-                  setSpinnerValue(modelSpinner, preferences.getString(KEY_MODEL, "gemini-3.1-flash-live-preview"), modelOptions);
+                  setSpinnerValue(modelSpinner, preferences.getString(KEY_MODEL, "models/gemini-2.0-flash-exp"), modelOptions);
                   setSpinnerValue(voiceSpinner, preferences.getString(KEY_VOICE, "Aoede"), voiceOptions);
               }
 
@@ -1251,7 +1239,7 @@ jobs:
           }
           EOF
 
-          # GeminiLiveClient.java: Fixed MediaChunks & Model Prefix Protocol
+          # GeminiLiveClient.java: Zero Ping-Timeout & Gated on setupComplete
           cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
           package com.gemini.live;
 
@@ -1265,7 +1253,6 @@ jobs:
           import okhttp3.WebSocketListener;
           import org.json.JSONArray;
           import org.json.JSONObject;
-          import java.util.concurrent.TimeUnit;
 
           public class GeminiLiveClient {
               public interface LiveCallback {
@@ -1280,16 +1267,18 @@ jobs:
               private OkHttpClient client;
               private LiveCallback callback;
               private Handler mainHandler = new Handler(Looper.getMainLooper());
+              private boolean isSetupComplete = false;
 
               public GeminiLiveClient(LiveCallback callback) {
                   this.callback = callback;
+                  // Explicitly NO pingInterval: Google's Live API backend drops sockets if client sends WS pings
                   this.client = new OkHttpClient.Builder()
-                      .pingInterval(15, TimeUnit.SECONDS)
-                      .readTimeout(0, TimeUnit.MILLISECONDS)
+                      .retryOnConnectionFailure(true)
                       .build();
               }
 
               public void connect(String apiKey, String model, String voice, String prompt) {
+                  isSetupComplete = false;
                   String url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + apiKey.trim();
                   Request request = new Request.Builder().url(url).build();
 
@@ -1297,7 +1286,6 @@ jobs:
                       @Override
                       public void onOpen(WebSocket ws, Response response) {
                           sendSetup(ws, model, voice, prompt);
-                          mainHandler.post(() -> { if (callback != null) callback.onConnected(); });
                       }
 
                       @Override
@@ -1307,12 +1295,12 @@ jobs:
 
                       @Override
                       public void onClosed(WebSocket ws, int code, String reason) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Closed: " + reason); });
+                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Closed (" + code + "): " + reason); });
                       }
 
                       @Override
                       public void onFailure(WebSocket ws, Throwable t, Response response) {
-                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Failed: " + t.getMessage()); });
+                          mainHandler.post(() -> { if (callback != null) callback.onClosed("Error: " + t.getMessage()); });
                       }
                   });
               }
@@ -1423,8 +1411,9 @@ jobs:
                   return decl;
               }
 
+              // Do not send audio until setupComplete is received!
               public void sendAudioChunk(String base64Pcm) {
-                  if (webSocket == null) return;
+                  if (webSocket == null || !isSetupComplete) return;
                   try {
                       JSONObject real = new JSONObject();
                       JSONArray mediaChunks = new JSONArray();
@@ -1438,7 +1427,7 @@ jobs:
               }
 
               public void sendImageFrame(String base64Jpeg) {
-                  if (webSocket == null) return;
+                  if (webSocket == null || !isSetupComplete) return;
                   try {
                       JSONObject real = new JSONObject();
                       JSONArray mediaChunks = new JSONArray();
@@ -1468,6 +1457,15 @@ jobs:
               private void handleIncomingJson(String jsonStr) {
                   try {
                       JSONObject res = new JSONObject(jsonStr);
+
+                      // Gate audio: setupComplete confirms Google accepts session
+                      if (res.has("setupComplete")) {
+                          isSetupComplete = true;
+                          mainHandler.post(() -> {
+                              if (callback != null) callback.onConnected();
+                          });
+                          return;
+                      }
 
                       if (res.has("toolCall")) {
                           JSONObject toolCall = res.getJSONObject("toolCall");
@@ -1522,6 +1520,7 @@ jobs:
               }
 
               public void disconnect() {
+                  isSetupComplete = false;
                   if (webSocket != null) {
                       webSocket.close(1000, "Clean close");
                       webSocket = null;
@@ -1559,6 +1558,7 @@ jobs:
               private TextView actionBtn;
               private boolean isAttached = false;
               private Handler mainHandler = new Handler(Looper.getMainLooper());
+              private State currentState = State.IDLE;
 
               public FloatingPillManager(Context context) {
                   this.context = context;
@@ -1618,7 +1618,11 @@ jobs:
 
                   actionBtn.setOnClickListener(v -> {
                       if (VolumeTriggerService.instance != null) {
-                          VolumeTriggerService.instance.toggleAssistantSession();
+                          if (currentState == State.IDLE) {
+                              VolumeTriggerService.instance.toggleAssistantSession();
+                          } else {
+                              VolumeTriggerService.instance.disconnectSession();
+                          }
                       }
                   });
 
@@ -1668,6 +1672,7 @@ jobs:
               }
 
               public void updateState(State state, String title, String sub) {
+                  this.currentState = state;
                   mainHandler.post(() -> {
                       statusText.setText(title);
                       subText.setText(sub);
@@ -1826,7 +1831,7 @@ jobs:
                   showToast("Connecting to Gemini Live...");
 
                   String prompt = prefs.getString("assistant_instructions", "");
-                  String model = prefs.getString("target_model", "gemini-3.1-flash-live-preview");
+                  String model = prefs.getString("target_model", "models/gemini-2.0-flash-exp");
                   String voice = prefs.getString("voice_profile", "Aoede");
 
                   geminiClient.connect(key, model, voice, prompt);
@@ -1849,7 +1854,7 @@ jobs:
                   isSessionActive = true;
                   audioEngine.startRecording();
                   pillManager.updateState(FloatingPillManager.State.LISTENING, "Listening", "Go ahead");
-                  showToast("Live Connected! Go ahead, speak.");
+                  showToast("✓ Connected & Live! Speak now.");
               }
 
               @Override
@@ -1884,7 +1889,7 @@ jobs:
                   audioEngine.stopRecording();
                   audioEngine.stopPlayback();
                   pillManager.updateState(FloatingPillManager.State.IDLE, "Voice", "Ready");
-                  showToast("Live Session: " + reason);
+                  showToast(reason);
               }
 
               private void startInactivityTimer() {
@@ -1971,6 +1976,7 @@ jobs:
                   geminiClient.sendToolResponse(callId, result);
               }
 
+              // Calibrated 288x592 Native Touch with Magnetic Snapping
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -2324,5 +2330,5 @@ jobs:
           gh release delete v3.0 --yes || true
           git tag -d v3.0 || true
           gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice Native v3.0" \
-            --notes "Voice Native v3.0: Crash-proof Material UI, side-by-side package ID, and calibrated 288x592 touch targeting." || true
+            --title "Voice Native v3.0 (Fixed Ping & Handshake)" \
+            --notes "Voice Native v3.0: Fixed WebSocket ping timeout, gated audio streaming on setupComplete, and integrated Material Design UI." || true
