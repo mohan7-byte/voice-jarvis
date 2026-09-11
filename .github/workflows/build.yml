@@ -1431,3 +1431,24 @@ jobs:
                   if (root == null) return "No active window.";
 
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.5
+
+      - name: Compile Pure Native Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Voice-Native-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Release Voice Native v3.0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete v3.0 --yes || true
+          git tag -d v3.0 || true
+          gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice Native v3.0 (Zero WebView • 18MB RAM)" \
+            --notes "Voice v3.0 Pure Native Engine: No WebView, native 56dp floating pill overlay, direct AudioRecord/AudioTrack, OkHttp WebSockets, 0-1000 coordinate calibration for 288x592 with magnetic snap." || true
