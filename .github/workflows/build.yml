@@ -124,7 +124,7 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 14
+                  versionCode 15
                   versionName "3.0"
               }
               buildTypes {
@@ -258,7 +258,6 @@ jobs:
                   } catch (Exception ignored) {}
               }
 
-              // 1:1 Crisp Capture for J6+ (288x592) with instant VirtualDisplay teardown
               public String captureScreenBase64() {
                   if (mediaProjection == null) {
                       initProjection();
@@ -407,7 +406,6 @@ jobs:
                           while (isRecording) {
                               int read = audioRecord.read(buffer, 0, buffer.length);
                               if (read > 0 && !isMuted && !isModelSpeaking) {
-                                  // Voice activity detection
                                   long sum = 0;
                                   for (int i = 0; i < read; i += 2) {
                                       short val = (short) ((buffer[i + 1] << 8) | (buffer[i] & 0xFF));
@@ -747,7 +745,7 @@ jobs:
           }
           EOF
 
-          # FloatingPillManager.java: Native 56dp Dynamic Island Capsule (No Screen Glass Wall!)
+          # FloatingPillManager.java: Native 56dp Dynamic Island Capsule
           cat << 'EOF' > app/src/main/java/com/gemini/live/FloatingPillManager.java
           package com.gemini.live;
 
@@ -790,14 +788,12 @@ jobs:
                   int pV = dp(8), pH = dp(14);
                   pillContainer.setPadding(pH, pV, pH, pV);
 
-                  // Native Capsule Background (Dark blur look)
                   GradientDrawable bg = new GradientDrawable();
                   bg.setColor(Color.parseColor("#0D101A"));
                   bg.setCornerRadius(dp(999));
                   bg.setStroke(dp(1), Color.parseColor("#2A3042"));
                   pillContainer.setBackground(bg);
 
-                  // Glowing Orb Indicator
                   orbView = new View(context);
                   LinearLayout.LayoutParams orbLp = new LinearLayout.LayoutParams(dp(22), dp(22));
                   orbLp.setMargins(0, 0, dp(10), 0);
@@ -805,7 +801,6 @@ jobs:
                   setOrbColor(Color.parseColor("#4338CA"));
                   pillContainer.addView(orbView);
 
-                  // Texts Container
                   LinearLayout textCol = new LinearLayout(context);
                   textCol.setOrientation(LinearLayout.VERTICAL);
                   textCol.setGravity(Gravity.CENTER_VERTICAL);
@@ -825,7 +820,6 @@ jobs:
                   textCol.addView(subText);
                   pillContainer.addView(textCol);
 
-                  // Quick Action / Start Button
                   actionBtn = new TextView(context);
                   actionBtn.setText("Start");
                   actionBtn.setTextColor(Color.WHITE);
@@ -861,7 +855,6 @@ jobs:
               public void show() {
                   mainHandler.post(() -> {
                       if (isAttached) return;
-                      // Physically only 56dp height - REST OF SCREEN IS 100% OPEN!
                       WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                           WindowManager.LayoutParams.WRAP_CONTENT,
                           WindowManager.LayoutParams.WRAP_CONTENT,
@@ -895,20 +888,20 @@ jobs:
                       subText.setText(sub);
                       switch (state) {
                           case LISTENING:
-                              setOrbColor(Color.parseColor("#A855F7")); // Purple
+                              setOrbColor(Color.parseColor("#A855F7"));
                               actionBtn.setText("End");
                               break;
                           case WORKING:
-                              setOrbColor(Color.parseColor("#06B6D4")); // Cyan
+                              setOrbColor(Color.parseColor("#06B6D4"));
                               actionBtn.setText("...");
                               break;
                           case SPEAKING:
-                              setOrbColor(Color.parseColor("#F59E0B")); // Amber
+                              setOrbColor(Color.parseColor("#F59E0B"));
                               actionBtn.setText("End");
                               break;
                           case IDLE:
                           default:
-                              setOrbColor(Color.parseColor("#4338CA")); // Blue
+                              setOrbColor(Color.parseColor("#4338CA"));
                               actionBtn.setText("Start");
                               break;
                       }
@@ -938,8 +931,6 @@ jobs:
           import android.widget.EditText;
           import android.widget.Toast;
           import androidx.appcompat.app.AppCompatActivity;
-          import java.io.File;
-          import java.io.FileWriter;
 
           public class SettingsActivity extends AppCompatActivity {
               private static final int REQ_CAPTURE = 303;
@@ -952,10 +943,8 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   prefs = getSharedPreferences("voice_prefs", MODE_PRIVATE);
-
                   setContentView(createSettingsLayout());
 
-                  // Request permissions if needed
                   String[] perms = {
                       android.Manifest.permission.RECORD_AUDIO,
                       android.Manifest.permission.CAMERA,
@@ -1231,7 +1220,6 @@ jobs:
                   }
               }
 
-              // Autonomous Tool Execution
               @Override
               public void onToolCall(String name, JSONObject args, String callId) {
                   resetInactivityTimer();
@@ -1299,7 +1287,6 @@ jobs:
                   geminiClient.sendToolResponse(callId, result);
               }
 
-              // Auto-Calibrated 288x592 Coordinates with Magnetic Snap
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -1310,7 +1297,6 @@ jobs:
                   int targetX = (x <= 1000 && y <= 1000) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
                   int targetY = (x <= 1000 && y <= 1000) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
 
-                  // Magnetic Snap Engine (35px radius)
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root != null) {
                       Rect snapped = findNearbyElement(root, targetX, targetY, 35);
@@ -1431,6 +1417,201 @@ jobs:
                   if (root == null) return "No active window.";
 
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+                  DisplayMetrics dm = new DisplayMetrics();
+                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
+                  else dm = getResources().getDisplayMetrics();
+
+                  StringBuilder sb = new StringBuilder();
+                  sb.append("=== INTERACTIVE ELEMENTS (0-1000) ===\n");
+                  List<String> elements = new ArrayList<>();
+                  extractInteractive(root, elements, dm, 0);
+                  for (String e : elements) sb.append(e).append("\n");
+
+                  sb.append("\n=== SCREEN TEXT ===\n");
+                  extractText(root, sb, 0);
+                  return sb.toString().trim();
+              }
+
+              private void extractInteractive(AccessibilityNodeInfo node, List<String> list, DisplayMetrics dm, int depth) {
+                  if (node == null || depth > 25 || list.size() >= 25) return;
+                  if (node.isClickable() || node.isEditable()) {
+                      CharSequence text = node.getText();
+                      CharSequence desc = node.getContentDescription();
+                      String label = text != null ? text.toString().trim() : (desc != null ? desc.toString().trim() : "");
+                      if (!label.isEmpty()) {
+                          Rect r = new Rect();
+                          node.getBoundsInScreen(r);
+                          if (r.width() > 5 && r.height() > 5) {
+                              int normX = Math.round((r.centerX() / (float) dm.widthPixels) * 1000);
+                              int normY = Math.round((r.centerY() / (float) dm.heightPixels) * 1000);
+                              list.add("[" + (node.isEditable() ? "Input" : "Button") + "] \"" + label + "\" at (" + normX + ", " + normY + ")");
+                          }
+                      }
+                  }
+                  for (int i = 0; i < node.getChildCount(); i++) extractInteractive(node.getChild(i), list, dm, depth + 1);
+              }
+
+              private void extractText(AccessibilityNodeInfo node, StringBuilder sb, int depth) {
+                  if (node == null || depth > 25) return;
+                  CharSequence text = node.getText();
+                  if (text != null && text.length() > 0) sb.append(text).append("\n");
+                  else {
+                      CharSequence desc = node.getContentDescription();
+                      if (desc != null && desc.length() > 0) sb.append(desc).append("\n");
+                  }
+                  for (int i = 0; i < node.getChildCount(); i++) extractText(node.getChild(i), sb, depth + 1);
+              }
+
+              public String typeText(String text) {
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root == null) return "No active window.";
+
+                  AccessibilityNodeInfo target = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+                  if (target == null) target = findFirstEditable(root, 0);
+
+                  if (target != null) {
+                      ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                      if (cm != null) {
+                          cm.setPrimaryClip(ClipData.newPlainText("text", text));
+                      }
+                      boolean ok = target.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+                      if (!ok) {
+                          Bundle b = new Bundle();
+                          b.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+                          ok = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, b);
+                      }
+                      return ok ? "Typed text." : "Could not paste.";
+                  }
+                  return "No editable field found.";
+              }
+
+              private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node, int depth) {
+                  if (node == null || depth > 25) return null;
+                  if (node.isEditable()) return node;
+                  for (int i = 0; i < node.getChildCount(); i++) {
+                      AccessibilityNodeInfo res = findFirstEditable(node.getChild(i), depth + 1);
+                      if (res != null) return res;
+                  }
+                  return null;
+              }
+
+              public String createNote(String text) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_SEND);
+                      intent.setType("text/plain");
+                      intent.putExtra(Intent.EXTRA_TEXT, text);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(Intent.createChooser(intent, "Note"));
+                      return "Note composer opened with text.";
+                  } catch (Exception e) { return "Note error: " + e.getMessage(); }
+              }
+
+              public String searchYouTube(String query) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_SEARCH);
+                      intent.setPackage("com.google.android.youtube");
+                      intent.putExtra("query", query);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Searching YouTube.";
+                  } catch (Exception e) {
+                      Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
+                      web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(web);
+                      return "Opened YouTube in browser.";
+                  }
+              }
+
+              public String searchWeb(String query) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+                      intent.putExtra("query", query);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Searching Google.";
+                  } catch (Exception e) { return "Search failed."; }
+              }
+
+              public String openWhatsApp(String phone, String msg) {
+                  try {
+                      String clean = phone.replaceAll("[^0-9+]", "");
+                      if (clean.startsWith("+")) clean = clean.substring(1);
+                      String url = "https://api.whatsapp.com/send?phone=" + clean + "&text=" + Uri.encode(msg);
+                      Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                      intent.setPackage("com.whatsapp");
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Opened WhatsApp chat.";
+                  } catch (Exception e) { return "WhatsApp error: " + e.getMessage(); }
+              }
+
+              public String openApp(String appName) {
+                  PackageManager pm = getPackageManager();
+                  List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                  for (ApplicationInfo a : apps) {
+                      String label = pm.getApplicationLabel(a).toString().toLowerCase();
+                      if (label.contains(appName.toLowerCase().trim())) {
+                          Intent launch = pm.getLaunchIntentForPackage(a.packageName);
+                          if (launch != null) {
+                              launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(launch);
+                              return "Opened " + label;
+                          }
+                      }
+                  }
+                  return "App not found.";
+              }
+
+              public String makePhoneCall(String num) {
+                  try {
+                      Intent call = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + num.trim()));
+                      call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(call);
+                      return "Calling " + num;
+                  } catch (Exception e) { return "Call failed: " + e.getMessage(); }
+              }
+
+              public String searchContacts(String q) {
+                  try {
+                      android.content.ContentResolver cr = getContentResolver();
+                      Uri uri = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+                      String sel = android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
+                      android.database.Cursor cur = cr.query(uri, new String[]{
+                          android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                          android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                      }, sel, new String[]{"%" + q.trim() + "%"}, null);
+                      if (cur != null) {
+                          StringBuilder res = new StringBuilder();
+                          while (cur.moveToNext()) {
+                              res.append(cur.getString(0)).append(": ").append(cur.getString(1)).append("\n");
+                              if (res.length() > 200) break;
+                          }
+                          cur.close();
+                          return res.length() > 0 ? res.toString() : "No contact found.";
+                      }
+                  } catch (Exception e) { return "Contact search failed."; }
+                  return "No contacts.";
+              }
+
+              public String toggleFlashlight(boolean state) {
+                  try {
+                      CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                      if (cm != null) {
+                          cm.setTorchMode(cm.getCameraIdList()[0], state);
+                          return "Flashlight " + (state ? "ON" : "OFF");
+                      }
+                  } catch (Exception ignored) {}
+                  return "Flashlight failed.";
+              }
+
+              @Override
+              public void onAccessibilityEvent(AccessibilityEvent event) {}
+
+              @Override
+              public void onInterrupt() {}
+          }
+          EOF
+
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.5
 
