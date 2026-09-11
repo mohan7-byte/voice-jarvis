@@ -62,6 +62,20 @@ jobs:
           </resources>
           EOF
 
+          # Re-added missing Accessibility Service Config XML
+          cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows"
+              android:canRequestFilterKeyEvents="true"
+              android:canRetrieveWindowContent="true"
+              android:canPerformGestures="true"
+              android:description="@string/accessibility_desc"
+              android:notificationTimeout="50" />
+          EOF
+
           # ChatGPT Visual Component: colors.xml
           cat << 'EOF' > app/src/main/res/values/colors.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -85,7 +99,7 @@ jobs:
           </resources>
           EOF
 
-          # ChatGPT Visual Component: styles.xml (Cleaned AAPT2 Typos)
+          # ChatGPT Visual Component: styles.xml
           cat << 'EOF' > app/src/main/res/values/styles.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -163,7 +177,7 @@ jobs:
           </shape>
           EOF
 
-          # ChatGPT Visual Component: activity_settings.xml (Cleaned AAPT2 Typos)
+          # ChatGPT Visual Component: activity_settings.xml
           cat << 'EOF' > app/src/main/res/layout/activity_settings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.core.widget.NestedScrollView
@@ -629,6 +643,7 @@ jobs:
           include ':app'
           EOF
 
+          # Updated applicationId to install side-by-side!
           cat << 'EOF' > app/build.gradle
           apply plugin: 'com.android.application'
 
@@ -637,10 +652,10 @@ jobs:
               compileSdk 34
 
               defaultConfig {
-                  applicationId "com.gemini.live"
+                  applicationId "com.gemini.live.native"
                   minSdk 24
                   targetSdk 34
-                  versionCode 16
+                  versionCode 17
                   versionName "3.0"
               }
               buildTypes {
@@ -793,7 +808,6 @@ jobs:
                   setupSaveActions();
                   loadPreferences();
 
-                  // Request necessary runtime permissions
                   String[] perms = {
                       android.Manifest.permission.RECORD_AUDIO,
                       android.Manifest.permission.CAMERA,
@@ -2346,4 +2360,4 @@ jobs:
           git tag -d v3.0 || true
           gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
             --title "Voice Native v3.0" \
-            --notes "Voice Native v3.0: Full Material UI, masked API field, auto-reconnecting socket, and calibrated 288x592 touch targeting." || true
+            --notes "Voice Native v3.0: Material UI, side-by-side package ID, masked API field, and calibrated 288x592 touch targeting." || true
